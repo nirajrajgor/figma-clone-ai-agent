@@ -13,8 +13,13 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DESIGN_TOOLS, REVIEW_TOOLS } from "@/components/annotation-tools";
 import { ArtboardTile } from "@/components/artboard-tile";
+import {
+  MarkupContextMenu,
+  type MarkupContextMenuActions,
+} from "@/components/markup-context-menu";
 import { ActionTooltip } from "@/components/action-tooltip";
 import { AnnotationInspector } from "@/components/annotation-inspector";
+import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
 import { useEditorSidebar } from "@/components/editor-sidebar-context";
 import { CanvasSelectionOverlay } from "@/components/canvas-selection-overlay";
 import { Button } from "@/components/ui/button";
@@ -38,7 +43,25 @@ import {
   updateObject,
   updateObjects,
 } from "@/lib/markup/document";
-import { hitTest } from "@/lib/markup/hit-test";
+import {
+  copyToClipboard,
+  pasteFromClipboard,
+  type MarkupClipboard,
+} from "@/lib/markup/clipboard";
+import {
+  formatModKey,
+  formatShiftModKey,
+  tooltipWithShortcut,
+} from "@/lib/keyboard-shortcuts";
+import {
+  canGroup,
+  canUngroup,
+  expandSelectionIds,
+  groupObjects,
+  resolveCanvasSelection,
+  ungroupObjects,
+} from "@/lib/markup/groups";
+import { hitTest, hitTestLeaf } from "@/lib/markup/hit-test";
 import { layoutFromArtboard, layoutFromBlankArtboard, applyFillModeLayout, resolveImageFillMode, type ArtboardLayout, type ImageFillMode } from "@/lib/markup/artboard-layout";
 import { artboardToImage, clientToArtboard, FRAME_LABEL_OFFSET, isInImageContent } from "@/lib/markup/artboard";
 import {
@@ -141,7 +164,9 @@ export function AnnotationEditor({
   const editorRef = useRef<HTMLDivElement>(null);
   const documentRef = useRef(document);
   const textPlacementRef = useRef<{ x: number; y: number } | null>(null);
-  const clipboardRef = useRef<Omit<MarkupObject, "id" | "zIndex">[]>([]);
+  const clipboardRef = useRef<MarkupClipboard>({ items: [] });
+  const [contextMenuTargetIds, setContextMenuTargetIds] = useState<Set<string>>(() => new Set());
+  const [clipboardReady, setClipboardReady] = useState(false);
   const [tool, setTool] = useState<MarkupTool>("select");
   const [strokeColor, setStrokeColor] = useState(DEFAULT_STROKE);
   const [strokeWidth, setStrokeWidth] = useState(DEFAULT_STROKE_WIDTH);
@@ -404,7 +429,7 @@ export function AnnotationEditor({
 
   const clientToImagePoint = useCallback(
     (clientX: number, clientY: number) => {
-      if (!activeArtboard || !effectiveLayout || !width || !height) return null;
+      if (!activeArtboard || !effectiveLayout) return null;
       const el = containerRef.current;
       if (!el) return null;
       const canvas = clientToArtboard(clientX, clientY, el.getBoundingClientRect(), offset, scale);
@@ -428,27 +453,61 @@ export function AnnotationEditor({
     [activeArtboard, effectiveLayout, height, imageCrop, offset, scale, width],
   );
 
+  const prepareCanvasContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      if (cropSession || textInlineEdit || tool !== "select") {
+        setContextMenuTargetIds(new Set());
+        return;
+      }
+      const pt = clientToImagePoint(e.clientX, e.clientY);
+      if (!pt) {
+        setContextMenuTargetIds(new Set(selected));
+        return;
+      }
+      const leafHit = hitTestLeaf(sortByZIndex(objects), pt.x, pt.y);
+      if (leafHit) {
+        const ids = resolveCanvasSelection(objects, selected, leafHit, e.shiftKey);
+        setContextMenuTargetIds(ids);
+        setFrameSelected(false);
+        setImageSelected(false);
+        setSelected(ids);
+        return;
+      }
+      setContextMenuTargetIds(new Set(selected));
+    },
+    [clientToImagePoint, cropSession, objects, selected, textInlineEdit, tool],
+  );
+
   const handleCanvasDoubleClick = useCallback(
     (e: React.MouseEvent) => {
       if (textInlineEdit || cropSession || tool !== "select") return;
       const pt = clientToImagePoint(e.clientX, e.clientY);
       if (!pt) return;
-      const hit = hitTest(sortByZIndex(objects), pt.x, pt.y);
-      if (hit) {
-        const obj = objects.find((o) => o.id === hit);
-        if (obj?.type !== "text") return;
-        e.preventDefault();
-        setTextInlineEdit({
-          kind: "edit",
-          id: obj.id,
-          x: obj.x,
-          y: obj.y,
-          content: obj.content,
-          fontSize: obj.fontSize,
-        });
-        setSelected(new Set([obj.id]));
-        setFrameSelected(false);
-        setImageSelected(false);
+      const leafHit = hitTestLeaf(sortByZIndex(objects), pt.x, pt.y);
+      if (leafHit) {
+        const obj = objects.find((o) => o.id === leafHit);
+        if (obj?.type === "text") {
+          e.preventDefault();
+          setTextInlineEdit({
+            kind: "edit",
+            id: obj.id,
+            x: obj.x,
+            y: obj.y,
+            content: obj.content,
+            fontSize: obj.fontSize,
+          });
+          setSelected(new Set([obj.id]));
+          setFrameSelected(false);
+          setImageSelected(false);
+          return;
+        }
+        if (obj?.groupId) {
+          e.preventDefault();
+          setSelected(new Set([leafHit]));
+          setFrameSelected(false);
+          setImageSelected(false);
+          return;
+        }
         return;
       }
       if (isInImageContent(pt.x, pt.y, width, height)) {
@@ -459,45 +518,137 @@ export function AnnotationEditor({
     [clientToImagePoint, cropSession, enterCropMode, objects, textInlineEdit, tool, width, height],
   );
 
+  const duplicateIds = useCallback(
+    (ids: Set<string>) => {
+      if (ids.size === 0) return;
+      const { stack, newIds } = duplicateObjects(objects, ids);
+      commit(stack);
+      setSelected(new Set(newIds));
+    },
+    [objects, commit],
+  );
+
   const duplicateSelection = useCallback(() => {
-    if (selected.size === 0) return;
-    const { stack, newIds } = duplicateObjects(objects, selected);
-    commit(stack);
-    setSelected(new Set(newIds));
-  }, [objects, selected, commit]);
+    duplicateIds(selected);
+  }, [duplicateIds, selected]);
+
+  const applyGroup = useCallback(
+    (targets: Set<string>) => {
+      const { stack, groupId } = groupObjects(objects, targets);
+      if (!groupId) return;
+      commit(stack);
+      setSelected(new Set([groupId]));
+      setContextMenuTargetIds(new Set());
+    },
+    [commit, objects],
+  );
+
+  const applyUngroup = useCallback(
+    (targets: Set<string>) => {
+      commit(ungroupObjects(objects, targets));
+      setSelected(new Set());
+      setContextMenuTargetIds(new Set());
+    },
+    [commit, objects],
+  );
+
+  const groupSelection = useCallback(() => {
+    applyGroup(selected);
+  }, [applyGroup, selected]);
+
+  const ungroupSelection = useCallback(() => {
+    applyUngroup(selected);
+  }, [applyUngroup, selected]);
+
+  const copyIds = useCallback(
+    (ids: Set<string>) => {
+      const clip = copyToClipboard(objects, ids);
+      if (clip.items.length === 0) return;
+      clipboardRef.current = clip;
+      setClipboardReady(true);
+    },
+    [objects],
+  );
 
   const copySelection = useCallback(() => {
-    if (selected.size === 0) return;
-    clipboardRef.current = objects
-      .filter((o) => selected.has(o.id))
-      .map((o) => {
-        const { id, zIndex, ...rest } = o;
-        void id;
-        void zIndex;
-        return rest as Omit<MarkupObject, "id" | "zIndex">;
+    copyIds(selected);
+  }, [copyIds, selected]);
+
+  const deleteIds = useCallback(
+    (ids: Set<string>) => {
+      if (ids.size === 0) return;
+      commit(removeObjects(objects, ids));
+      setSelected(new Set());
+    },
+    [commit, objects],
+  );
+
+  const editTextIds = useCallback(
+    (ids: Set<string>) => {
+      if (ids.size !== 1) return;
+      const id = [...ids][0];
+      const obj = objects.find((o) => o.id === id);
+      if (obj?.type !== "text") return;
+      setTextInlineEdit({
+        kind: "edit",
+        id: obj.id,
+        x: obj.x,
+        y: obj.y,
+        content: obj.content,
+        fontSize: obj.fontSize,
       });
-  }, [objects, selected]);
+      setSelected(new Set([id]));
+      setFrameSelected(false);
+      setImageSelected(false);
+    },
+    [objects],
+  );
 
   const pasteClipboard = useCallback(() => {
-    if (clipboardRef.current.length === 0) return;
-    const offset = 12;
-    const items = clipboardRef.current.map((item) => {
-      const temp = moveObjects(
-        [{ ...item, id: "paste", zIndex: 0 } as MarkupObject],
-        new Set(["paste"]),
-        offset,
-        offset,
-      )[0];
-      const { id, zIndex, ...rest } = temp;
-      void id;
-      void zIndex;
-      return rest as Omit<MarkupObject, "id" | "zIndex">;
-    });
-    const stack = addObjects(objects, items);
-    const newIds = stack.slice(-items.length).map((o) => o.id);
+    if (clipboardRef.current.items.length === 0) return;
+    const { stack, newIds } = pasteFromClipboard(objects, clipboardRef.current);
     commit(stack);
     setSelected(new Set(newIds));
   }, [objects, commit]);
+
+  const contextMenuActions = useMemo((): MarkupContextMenuActions => {
+    const targets = contextMenuTargetIds.size > 0 ? contextMenuTargetIds : selected;
+    const targetObjects = objects.filter((o) => targets.has(o.id));
+    const singleText = targets.size === 1 && targetObjects[0]?.type === "text";
+
+    return {
+      canCopy: targets.size > 0,
+      canPaste: clipboardReady,
+      canDuplicate: targets.size > 0,
+      canGroup: canGroup(objects, targets),
+      canUngroup: canUngroup(objects, targets),
+      canEditText: singleText,
+      canLayerOrder: targets.size > 0,
+      canDelete: targets.size > 0,
+      onCopy: () => copyIds(targets),
+      onPaste: pasteClipboard,
+      onDuplicate: () => duplicateIds(targets),
+      onGroup: () => applyGroup(targets),
+      onUngroup: () => applyUngroup(targets),
+      onEditText: () => editTextIds(targets),
+      onBringForward: () => commit(bringForward(objects, targets)),
+      onSendBackward: () => commit(sendBackward(objects, targets)),
+      onDelete: () => deleteIds(targets),
+    };
+  }, [
+    applyGroup,
+    applyUngroup,
+    clipboardReady,
+    commit,
+    contextMenuTargetIds,
+    copyIds,
+    deleteIds,
+    duplicateIds,
+    editTextIds,
+    objects,
+    pasteClipboard,
+    selected,
+  ]);
 
   const fit = useCallback(() => {
     const el = containerRef.current;
@@ -619,6 +770,24 @@ export function AnnotationEditor({
       pasteClipboard();
       return;
     }
+    if (mod && key === "g") {
+      e.preventDefault();
+      if (e.shiftKey) ungroupSelection();
+      else groupSelection();
+      return;
+    }
+    if (mod && e.key === "]") {
+      if (selected.size === 0) return;
+      e.preventDefault();
+      commit(bringForward(objects, selected));
+      return;
+    }
+    if (mod && e.key === "[") {
+      if (selected.size === 0) return;
+      e.preventDefault();
+      commit(sendBackward(objects, selected));
+      return;
+    }
     if (!mod && TOOL_SHORTCUTS[key]) {
       e.preventDefault();
       setTool(TOOL_SHORTCUTS[key]);
@@ -652,6 +821,19 @@ export function AnnotationEditor({
     if (key === "1") {
       e.preventDefault();
       zoomTo100();
+      return;
+    }
+    if (tool === "select" && selected.size > 0 && !mod) {
+      const step = e.shiftKey ? 10 : 1;
+      let dx = 0;
+      let dy = 0;
+      if (e.key === "ArrowLeft") dx = -step;
+      else if (e.key === "ArrowRight") dx = step;
+      else if (e.key === "ArrowUp") dy = -step;
+      else if (e.key === "ArrowDown") dy = step;
+      else return;
+      e.preventDefault();
+      commit(moveObjects(objects, selected, dx, dy));
     }
   };
 
@@ -694,7 +876,9 @@ export function AnnotationEditor({
       : (commonStrokeWidth ?? strokeWidth);
   const inspectorFillEnabled =
     (editingSelection
-      ? commonProperty(selectedObjects, (o) => (fillShape(o) ? o.fillEnabled : undefined))
+      ? commonProperty(selectedObjects, (o) =>
+          o.type === "rectangle" || o.type === "ellipse" ? o.fillEnabled : undefined,
+        )
       : undefined) ?? fillEnabled;
   const inspectorFillColor =
     (editingSelection ? commonProperty(selectedObjects, fillColorFromObject) : undefined) ??
@@ -774,6 +958,7 @@ export function AnnotationEditor({
         }
         return new Set([id]);
       });
+      editorRef.current?.focus({ preventScroll: true });
     },
     [],
   );
@@ -800,6 +985,16 @@ export function AnnotationEditor({
     [document.activeArtboardId, selectArtboard],
   );
 
+  const prepareLayerContextMenu = useCallback(
+    (id: string) => {
+      const rowInSelection = selected.has(id);
+      const targets =
+        rowInSelection && selected.size > 1 ? new Set(selected) : new Set([id]);
+      setContextMenuTargetIds(targets);
+    },
+    [selected],
+  );
+
   const { setLayers } = useEditorSidebar();
   useEffect(() => {
     setLayers({
@@ -817,9 +1012,12 @@ export function AnnotationEditor({
       onSelectFrame: handleSelectFrame,
       onSelectImage: handleSelectImage,
       onSelectLayer: handleSelectLayer,
+      onLayerContextMenu: prepareLayerContextMenu,
+      contextMenuActions,
     });
     return () => setLayers(null);
   }, [
+    contextMenuActions,
     document.activeArtboardId,
     document.artboards,
     frameSelected,
@@ -828,6 +1026,7 @@ export function AnnotationEditor({
     handleSelectLayer,
     imageSelected,
     objects,
+    prepareLayerContextMenu,
     selected,
     setLayers,
   ]);
@@ -942,7 +1141,7 @@ export function AnnotationEditor({
               </DropdownMenu>
             </div>
             <Separator orientation="vertical" className="mx-1 h-5" />
-            <ActionTooltip label="Undo (Ctrl+Z)" disabled={!canUndo}>
+            <ActionTooltip label={tooltipWithShortcut("Undo", formatModKey("Z"))} disabled={!canUndo}>
               <Button
                 type="button"
                 variant="ghost"
@@ -955,7 +1154,10 @@ export function AnnotationEditor({
                 <Undo2 className="size-4" />
               </Button>
             </ActionTooltip>
-            <ActionTooltip label="Redo (Ctrl+Shift+Z)" disabled={!canRedo}>
+            <ActionTooltip
+              label={tooltipWithShortcut("Redo", formatShiftModKey("Z"))}
+              disabled={!canRedo}
+            >
               <Button
                 type="button"
                 variant="ghost"
@@ -969,7 +1171,7 @@ export function AnnotationEditor({
               </Button>
             </ActionTooltip>
             <Separator orientation="vertical" className="mx-1 h-5" />
-            <ActionTooltip label="Bring forward">
+            <ActionTooltip label={tooltipWithShortcut("Bring forward", formatModKey("]"))}>
               <Button
                 type="button"
                 variant="ghost"
@@ -981,7 +1183,7 @@ export function AnnotationEditor({
                 <ArrowUp className="size-4" />
               </Button>
             </ActionTooltip>
-            <ActionTooltip label="Send backward">
+            <ActionTooltip label={tooltipWithShortcut("Send backward", formatModKey("["))}>
               <Button
                 type="button"
                 variant="ghost"
@@ -993,6 +1195,8 @@ export function AnnotationEditor({
                 <ArrowDown className="size-4" />
               </Button>
             </ActionTooltip>
+            <Separator orientation="vertical" className="mx-1 h-5" />
+            <KeyboardShortcutsDialog />
           </div>
           <ActionTooltip
             label={
@@ -1014,9 +1218,11 @@ export function AnnotationEditor({
             </span>
           </ActionTooltip>
         </header>
-        <div
-          ref={containerRef}
-          className={`relative min-h-0 flex-1 overflow-hidden bg-[#e5e5e5] dark:bg-[#2c2c2c] ${spaceHeld ? (panning ? "cursor-grabbing" : "cursor-grab") : ""}`}
+        <MarkupContextMenu
+          actions={contextMenuActions}
+          onContextMenu={prepareCanvasContextMenu}
+          triggerRef={containerRef}
+          triggerClassName={`relative min-h-0 flex-1 overflow-hidden bg-[#e5e5e5] dark:bg-[#2c2c2c] ${spaceHeld ? (panning ? "cursor-grabbing" : "cursor-grab") : ""}`}
           style={!spaceHeld && hoverCursor ? { cursor: hoverCursor } : undefined}
           onPointerLeave={() => setHoverCursor(null)}
           data-testid="canvas-viewport"
@@ -1071,13 +1277,17 @@ export function AnnotationEditor({
             const image = artboard.imageId ? document.images[artboard.imageId] : null;
             const imgW = image?.width ?? 0;
             const imgH = image?.height ?? 0;
-            const boardCrop = image
-              ? resolveImageCrop(artboard, imgW, imgH)
-              : { x: 0, y: 0, width: 0, height: 0 };
+            const resolvedCrop = image ? resolveImageCrop(artboard, imgW, imgH) : null;
             let boardLayout = image
-              ? layoutFromArtboard(artboard, imgW, imgH, boardCrop.width, boardCrop.height)
+              ? layoutFromArtboard(artboard, imgW, imgH, resolvedCrop.width, resolvedCrop.height)
               : layoutFromBlankArtboard(artboard);
             if (isActive && layoutPreview) boardLayout = layoutPreview;
+            const boardImageCrop = resolvedCrop ?? {
+              x: 0,
+              y: 0,
+              width: boardLayout.imageDisplayWidth,
+              height: boardLayout.imageDisplayHeight,
+            };
             if (isActive && imageMovePreview?.artboardId === artboard.id) {
               boardLayout = {
                 ...boardLayout,
@@ -1097,7 +1307,7 @@ export function AnnotationEditor({
                 image={image}
                 imgW={imgW}
                 imgH={imgH}
-                imageCrop={boardCrop}
+                imageCrop={boardImageCrop}
                 isActive={isActive}
                 boardLayout={boardLayout}
                 boardX={boardX}
@@ -1127,7 +1337,7 @@ export function AnnotationEditor({
             );
           })}
         </div>
-      </div>
+      </MarkupContextMenu>
         <footer
           className="flex h-9 shrink-0 items-center justify-between border-t bg-background px-3"
           data-testid="canvas-zoom-bar"

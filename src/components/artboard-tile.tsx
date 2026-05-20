@@ -176,10 +176,12 @@ function ArtboardTileInner({
               data-testid={isActive ? "markup-layer" : undefined}
               style={{ pointerEvents: cropEditing ? "none" : "none" }}
             >
-              {boardSorted.map((o) => {
-                if (textInlineEdit?.kind === "edit" && o.id === textInlineEdit.id) return null;
-                return renderSvgObject(o);
-              })}
+              {boardSorted
+                .filter((o) => o.type !== "group")
+                .map((o) => {
+                  if (textInlineEdit?.kind === "edit" && o.id === textInlineEdit.id) return null;
+                  return renderSvgObject(o);
+                })}
               {isActive && !cropEditing && draft && (draft.kind === "rectangle" || draft.kind === "redact") && (
                 <rect
                   x={draft.w < 0 ? draft.x + draft.w : draft.x}

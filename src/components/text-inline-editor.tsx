@@ -29,9 +29,11 @@ export function TextInlineEditor({
   const finishedRef = useRef(false);
 
   const fontSize = edit.kind === "edit" ? edit.fontSize : 16;
-  const left = ((edit.x - imageCrop.x) / imageCrop.width) * displayW;
-  const top = ((edit.y - imageCrop.y) / imageCrop.height) * displayH;
-  const fontPx = (fontSize / imageCrop.height) * displayH;
+  const cropW = imageCrop.width || displayW;
+  const cropH = imageCrop.height || displayH;
+  const left = ((edit.x - imageCrop.x) / cropW) * displayW;
+  const top = ((edit.y - imageCrop.y) / cropH) * displayH;
+  const fontPx = (fontSize / cropH) * displayH;
 
   useEffect(() => {
     const el = inputRef.current;

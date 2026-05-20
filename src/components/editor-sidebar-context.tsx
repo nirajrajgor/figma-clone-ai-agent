@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import type { MarkupContextMenuActions } from "@/components/markup-context-menu";
 import type { MarkupObject } from "@/lib/markup/types";
 
 export type ArtboardLayersNode = {
@@ -20,6 +21,8 @@ export type EditorSidebarLayers = {
   onSelectFrame: (artboardId: string) => void;
   onSelectImage: (artboardId: string) => void;
   onSelectLayer: (id: string, additive: boolean) => void;
+  onLayerContextMenu: (id: string) => void;
+  contextMenuActions: MarkupContextMenuActions;
 };
 
 type EditorSidebarContextValue = {

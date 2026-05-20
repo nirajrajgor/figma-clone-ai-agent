@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   Circle,
+  Folder,
   Frame,
   Image as ImageIcon,
   Minus,
@@ -16,12 +17,19 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ArtboardLayersNode } from "@/components/editor-sidebar-context";
+import {
+  MarkupContextMenu,
+  type MarkupContextMenuActions,
+} from "@/components/markup-context-menu";
+import { buildLayerTree, directGroupChildren, type LayerTreeNode } from "@/lib/markup/groups";
 import { sortByZIndex } from "@/lib/markup/document";
 import type { MarkupObject } from "@/lib/markup/types";
 import { cn } from "@/lib/utils";
 
 function layerLabel(obj: MarkupObject): string {
   switch (obj.type) {
+    case "group":
+      return obj.name.trim() || "Group";
     case "text":
       return obj.content.trim() || "Text";
     case "rectangle":
@@ -44,6 +52,8 @@ function layerLabel(obj: MarkupObject): string {
 function layerIcon(obj: MarkupObject) {
   const className = "size-3.5 shrink-0 text-muted-foreground";
   switch (obj.type) {
+    case "group":
+      return <Folder className={className} aria-hidden />;
     case "rectangle":
       return <Square className={className} aria-hidden />;
     case "ellipse":
@@ -80,7 +90,13 @@ type Props = {
   onSelectFrame: (artboardId: string) => void;
   onSelectImage: (artboardId: string) => void;
   onSelectLayer: (id: string, additive: boolean) => void;
+  onLayerContextMenu: (id: string) => void;
+  contextMenuActions: MarkupContextMenuActions;
 };
+
+function isRowSelected(selected: Set<string>, obj: MarkupObject): boolean {
+  return selected.has(obj.id);
+}
 
 export function MarkupLayersPanel({
   artboards,
@@ -91,11 +107,14 @@ export function MarkupLayersPanel({
   onSelectFrame,
   onSelectImage,
   onSelectLayer,
+  onLayerContextMenu,
+  contextMenuActions,
 }: Props) {
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set([activeArtboardId]));
+  const [expandedArtboards, setExpandedArtboards] = useState<Set<string>>(() => new Set([activeArtboardId]));
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
-    setExpanded((prev) => {
+    setExpandedArtboards((prev) => {
       if (prev.has(activeArtboardId)) return prev;
       const next = new Set(prev);
       next.add(activeArtboardId);
@@ -103,13 +122,138 @@ export function MarkupLayersPanel({
     });
   }, [activeArtboardId]);
 
-  const toggleExpanded = (artboardId: string) => {
-    setExpanded((prev) => {
+  const toggleArtboard = (artboardId: string) => {
+    setExpandedArtboards((prev) => {
       const next = new Set(prev);
       if (next.has(artboardId)) next.delete(artboardId);
       else next.add(artboardId);
       return next;
     });
+  };
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const inactiveActions: MarkupContextMenuActions = {
+    ...contextMenuActions,
+    canCopy: false,
+    canDuplicate: false,
+    canGroup: false,
+    canUngroup: false,
+    canEditText: false,
+    canLayerOrder: false,
+    canDelete: false,
+  };
+
+  const renderLayerRow = (
+    board: ArtboardLayersNode,
+    obj: MarkupObject,
+    opts: { testId: string; indent?: boolean },
+  ) => {
+    const active = board.isActive && isRowSelected(selected, obj);
+    const label = layerLabel(obj);
+    const actions = board.isActive ? contextMenuActions : inactiveActions;
+
+    return (
+      <MarkupContextMenu
+        actions={actions}
+        onContextMenu={() => {
+          if (!board.isActive) onSelectFrame(board.id);
+          if (!isRowSelected(selected, obj)) {
+            onSelectLayer(obj.id, false);
+          }
+          onLayerContextMenu(obj.id);
+        }}
+        triggerClassName="w-full"
+      >
+        <button
+          type="button"
+          data-testid={opts.testId}
+          data-layer-id={obj.id}
+          data-layer-type={obj.type}
+          aria-pressed={active}
+          title={label}
+          className={cn(rowClass(active), "w-full px-2", opts.indent && "pl-6")}
+          onClick={(e) => {
+            if (!board.isActive) onSelectFrame(board.id);
+            onSelectLayer(obj.id, e.shiftKey);
+          }}
+        >
+          {layerIcon(obj)}
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+        </button>
+      </MarkupContextMenu>
+    );
+  };
+
+  const nestedGroupChildren = (objects: MarkupObject[], groupId: string) =>
+    sortByZIndex(directGroupChildren(objects, groupId)).reverse();
+
+  const renderTreeNode = (board: ArtboardLayersNode, node: LayerTreeNode, depth = 0): React.ReactNode => {
+    if (node.kind === "leaf") {
+      return (
+        <li key={node.object.id}>
+          {renderLayerRow(board, node.object, {
+            testId: "layer-item",
+            indent: depth > 0,
+          })}
+        </li>
+      );
+    }
+
+    const { group, children } = node;
+    const groupExpanded = expandedGroups.has(group.id);
+
+    return (
+      <li key={group.id} data-testid="layer-group">
+        <div className="flex min-w-0 items-center" style={{ paddingLeft: depth > 0 ? depth * 12 : 0 }}>
+          <button
+            type="button"
+            className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/60"
+            aria-label={groupExpanded ? "Collapse group" : "Expand group"}
+            aria-expanded={groupExpanded}
+            data-testid="layer-group-toggle"
+            onClick={() => toggleGroup(group.id)}
+          >
+            {groupExpanded ? (
+              <ChevronDown className="size-3.5" aria-hidden />
+            ) : (
+              <ChevronRight className="size-3.5" aria-hidden />
+            )}
+          </button>
+          <div className="min-w-0 flex-1">
+            {renderLayerRow(board, group, { testId: "layer-group-row" })}
+          </div>
+        </div>
+        {groupExpanded && (
+          <ul className="ml-8 space-y-0.5 border-l border-border/60 pl-1.5">
+            {children.map((child) =>
+              child.type === "group" ? (
+                renderTreeNode(
+                  board,
+                  {
+                    kind: "group",
+                    group: child,
+                    children: nestedGroupChildren(board.objects, child.id),
+                  },
+                  depth + 1,
+                )
+              ) : (
+                <li key={child.id}>
+                  {renderLayerRow(board, child, { testId: "layer-item", indent: true })}
+                </li>
+              ),
+            )}
+          </ul>
+        )}
+      </li>
+    );
   };
 
   return (
@@ -120,11 +264,11 @@ export function MarkupLayersPanel({
       ) : (
         <ul className="space-y-0.5" data-testid="layers-list">
           {artboards.map((board) => {
-            const isExpanded = expanded.has(board.id);
+            const isExpanded = expandedArtboards.has(board.id);
             const frameActive =
               board.isActive && frameSelected && !imageSelected && selected.size === 0;
             const imageActive = board.isActive && imageSelected && selected.size === 0;
-            const markupLayers = sortByZIndex(board.objects).reverse();
+            const tree = buildLayerTree(board.objects);
 
             return (
               <li key={board.id} data-testid="layer-artboard">
@@ -135,7 +279,7 @@ export function MarkupLayersPanel({
                     aria-label={isExpanded ? "Collapse artboard layers" : "Expand artboard layers"}
                     aria-expanded={isExpanded}
                     data-testid="layer-artboard-toggle"
-                    onClick={() => toggleExpanded(board.id)}
+                    onClick={() => toggleArtboard(board.id)}
                   >
                     {isExpanded ? (
                       <ChevronDown className="size-3.5" aria-hidden />
@@ -174,31 +318,8 @@ export function MarkupLayersPanel({
                         </button>
                       </li>
                     )}
-                    {markupLayers.map((obj) => {
-                      const active = board.isActive && selected.has(obj.id);
-                      const label = layerLabel(obj);
-                      return (
-                        <li key={obj.id}>
-                          <button
-                            type="button"
-                            data-testid="layer-item"
-                            data-layer-id={obj.id}
-                            data-layer-type={obj.type}
-                            aria-pressed={active}
-                            title={label}
-                            className={cn(rowClass(active), "px-2")}
-                            onClick={(e) => {
-                              if (!board.isActive) onSelectFrame(board.id);
-                              onSelectLayer(obj.id, e.shiftKey);
-                            }}
-                          >
-                            {layerIcon(obj)}
-                            <span className="min-w-0 flex-1 truncate">{label}</span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                    {!board.hasImage && markupLayers.length === 0 && (
+                    {tree.map((node) => renderTreeNode(board, node))}
+                    {!board.hasImage && tree.length === 0 && (
                       <li className="px-2 py-1.5 text-xs text-muted-foreground">Empty frame</li>
                     )}
                   </ul>

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { addObject, moveObjects, sortByZIndex } from "@/lib/markup/document";
-import { hitTest, objectsInRect } from "@/lib/markup/hit-test";
+import { leafSelectionIds, resolveCanvasSelection, selectionFromLeafHits } from "@/lib/markup/groups";
+import { hitTest, hitTestLeaf, objectsInRect } from "@/lib/markup/hit-test";
 import {
   applyArtboardResize,
   applyImageResize,
@@ -24,12 +25,10 @@ import {
 } from "@/lib/markup/image-crop";
 import {
   ARTBOARD_HANDLE_HIT_RADIUS,
+  boundsForSelection,
   cursorForHandle,
   hitBoxHandle,
   hitSelectionHandle,
-  objectBounds,
-  type Bounds,
-  type ResizeHandle,
 } from "@/lib/markup/bounds";
 import { applyResize } from "@/lib/markup/resize";
 import {
@@ -67,7 +66,7 @@ export type MarkupDraft =
 
 type DragState =
   | { kind: "pan"; x: number; y: number; ox: number; oy: number }
-  | { kind: "move"; x: number; y: number }
+  | { kind: "move"; x: number; y: number; moveIds: Set<string> }
   | {
       kind: "resize";
       handle: ResizeHandle;
@@ -387,7 +386,7 @@ export function useAnnotationPointer(session: SessionDocApi, ctx: PointerContext
         if (handle && selected.size === 1) {
           const id = [...selected][0];
           const target = objects.find((o) => o.id === id);
-          const startBounds = target ? objectBounds(target) : null;
+          const startBounds = target ? boundsForSelection(objects, target.id) : null;
           if (startBounds) {
             setFrameSelected(false);
             setImageSelected(false);
@@ -397,17 +396,18 @@ export function useAnnotationPointer(session: SessionDocApi, ctx: PointerContext
           }
         }
 
-        const markupHit = hitTest(sorted, pt.x, pt.y);
-        if (markupHit && targetBoard.id === document.activeArtboardId) {
+        const leafHit = hitTestLeaf(sorted, pt.x, pt.y);
+        if (leafHit && targetBoard.id === document.activeArtboardId) {
+          const nextSelected = resolveCanvasSelection(objects, selected, leafHit, e.shiftKey);
           setFrameSelected(false);
           setImageSelected(false);
-          setSelected((prev) => {
-            const next = new Set(e.shiftKey ? prev : []);
-            if (next.has(markupHit)) next.delete(markupHit);
-            else next.add(markupHit);
-            return next;
-          });
-          dragRef.current = { kind: "move", x: pt.x, y: pt.y };
+          setSelected(nextSelected);
+          dragRef.current = {
+            kind: "move",
+            x: pt.x,
+            y: pt.y,
+            moveIds: leafSelectionIds(objects, nextSelected),
+          };
           containerRef.current?.setPointerCapture(e.pointerId);
           return;
         }
@@ -644,12 +644,12 @@ export function useAnnotationPointer(session: SessionDocApi, ctx: PointerContext
         setHoverCursor((prev) => (prev === nextCursor ? prev : nextCursor));
       }
 
-      if (drag?.kind === "move" && selected.size > 0) {
+      if (drag?.kind === "move" && drag.moveIds.size > 0) {
         const dx = pt.x - drag.x;
         const dy = pt.y - drag.y;
         if (dx !== 0 || dy !== 0) {
-          previewMarkup(moveObjects(objects, selected, dx, dy));
-          dragRef.current = { kind: "move", x: pt.x, y: pt.y };
+          previewMarkup(moveObjects(objects, drag.moveIds, dx, dy));
+          dragRef.current = { kind: "move", x: pt.x, y: pt.y, moveIds: drag.moveIds };
         }
         return;
       }
@@ -708,9 +708,10 @@ export function useAnnotationPointer(session: SessionDocApi, ctx: PointerContext
       }
 
       if (marquee) {
-        const ids = objectsInRect(sorted, marquee.x1, marquee.y1, marquee.x2, marquee.y2);
-        setSelected(new Set(ids));
-        setFrameSelected(ids.length === 0);
+        const leafIds = objectsInRect(sorted, marquee.x1, marquee.y1, marquee.x2, marquee.y2);
+        const ids = selectionFromLeafHits(objects, leafIds);
+        setSelected(ids);
+        setFrameSelected(ids.size === 0);
         setImageSelected(false);
         setMarquee(null);
         dragRef.current = null;

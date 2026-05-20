@@ -46,6 +46,28 @@ export function EditorLeftSidebar({
             onSelectFrame={layers?.onSelectFrame ?? (() => {})}
             onSelectImage={layers?.onSelectImage ?? (() => {})}
             onSelectLayer={layers?.onSelectLayer ?? (() => {})}
+            onLayerContextMenu={layers?.onLayerContextMenu ?? (() => {})}
+            contextMenuActions={
+              layers?.contextMenuActions ?? {
+                canCopy: false,
+                canPaste: false,
+                canDuplicate: false,
+                canGroup: false,
+                canUngroup: false,
+                canEditText: false,
+                canLayerOrder: false,
+                canDelete: false,
+                onCopy: () => {},
+                onPaste: () => {},
+                onDuplicate: () => {},
+                onGroup: () => {},
+                onUngroup: () => {},
+                onEditText: () => {},
+                onBringForward: () => {},
+                onSendBackward: () => {},
+                onDelete: () => {},
+              }
+            }
           />
         </div>
       </ScrollArea>
