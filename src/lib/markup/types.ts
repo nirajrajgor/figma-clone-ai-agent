@@ -16,6 +16,13 @@ type MarkupObjectBase = {
   zIndex: number;
   strokeColor: string;
   strokeWidth: number;
+  /** Parent group id when nested under a Group layer. */
+  groupId?: string;
+};
+
+export type GroupMarkup = MarkupObjectBase & {
+  type: "group";
+  name: string;
 };
 
 export type RectangleMarkup = MarkupObjectBase & {
@@ -82,6 +89,7 @@ export type TextMarkup = MarkupObjectBase & {
 };
 
 export type MarkupObject =
+  | GroupMarkup
   | RectangleMarkup
   | EllipseMarkup
   | RedactMarkup
