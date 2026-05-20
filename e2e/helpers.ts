@@ -5,6 +5,9 @@ export const FIXTURE = path.join(__dirname, "fixtures", "test.png");
 
 export const undoMod = process.platform === "darwin" ? "Meta" : "Control";
 
+export const shiftUndoMod =
+  process.platform === "darwin" ? "Shift+Meta" : "Shift+Control";
+
 export const markupShapes = '[data-markup-shape]';
 
 export function pngDimensions(buf: Buffer): { width: number; height: number } {
@@ -182,6 +185,141 @@ export async function clickFrameContent(page: Page, x: number, y: number) {
   await page.mouse.click(box.x + box.width * x, box.y + box.height * y);
 }
 
+/** Right-click within the image area using fractional coordinates (0–1). */
+export async function rightClickFrameContent(page: Page, x: number, y: number) {
+  const box = await frameContentBox(page);
+  await page.mouse.click(box.x + box.width * x, box.y + box.height * y, { button: "right" });
+}
+
+/** Open the markup context menu on the canvas at fractional frame coordinates. */
+export async function openCanvasContextMenu(page: Page, x: number, y: number) {
+  await rightClickFrameContent(page, x, y);
+  await page.getByTestId("context-menu-duplicate").waitFor({ state: "visible" });
+}
+
+/** Right-click a layer row in the left sidebar (optional markup type filter). */
+export async function openLayerContextMenu(page: Page, layerType?: string) {
+  const sidebar = page.getByTestId("app-sidebar");
+  const row = layerType
+    ? sidebar.locator(`[data-testid="layer-item"][data-layer-type="${layerType}"]`)
+    : sidebar.getByTestId("layer-item").first();
+  await row.click({ button: "right" });
+  await page.getByTestId("context-menu-duplicate").waitFor({ state: "visible" });
+}
+
+/** Select multiple markup layers in the sidebar (shift-add after the first). */
+export async function selectLayerItems(page: Page, layerTypes: string[]) {
+  const sidebar = page.getByTestId("app-sidebar");
+  for (let i = 0; i < layerTypes.length; i++) {
+    const row = sidebar
+      .locator(`[data-testid="layer-item"][data-layer-type="${layerTypes[i]}"]`)
+      .first();
+    await row.click({ modifiers: i === 0 ? [] : ["Shift"] });
+  }
+}
+
+/** Draw a rectangle and ellipse on the active frame (select tool afterward). */
+export async function drawRectangleAndEllipse(page: Page) {
+  await page.getByTestId("tool-rectangle").click();
+  await dragFrameContent(page, 0.15, 0.15, 0.3, 0.3);
+  await page.waitForTimeout(350);
+  await page.getByTestId("tool-ellipse").click();
+  await dragFrameContent(page, 0.45, 0.15, 0.6, 0.3);
+  await page.waitForTimeout(350);
+  await page.getByTestId("tool-select").click();
+}
+
+export async function groupViaCanvasMenu(
+  page: Page,
+  at: { x: number; y: number } = { x: 0.22, y: 0.22 },
+) {
+  await openCanvasContextMenu(page, at.x, at.y);
+  await page.getByTestId("context-menu-group").click();
+  await page.waitForTimeout(400);
+}
+
+export async function expandFirstGroupInLayers(page: Page) {
+  await page.getByTestId("app-sidebar").getByTestId("layer-group-toggle").first().click();
+}
+
+/** Draw a line and rectangle in the lower half of the frame (select tool afterward). */
+export async function drawLineAndRectangle(page: Page) {
+  await page.getByTestId("tool-line").click();
+  await dragFrameContent(page, 0.15, 0.55, 0.35, 0.75);
+  await page.waitForTimeout(350);
+  await page.getByTestId("tool-rectangle").click();
+  await dragFrameContent(page, 0.45, 0.55, 0.6, 0.75);
+  await page.waitForTimeout(350);
+  await page.getByTestId("tool-select").click();
+}
+
+/** Shift-select multiple top-level group rows in the layers panel. */
+export async function selectGroupRows(page: Page, indices: number[]) {
+  const rows = page.getByTestId("app-sidebar").getByTestId("layer-group-row");
+  for (let i = 0; i < indices.length; i++) {
+    await rows.nth(indices[i]!).click({ modifiers: i === 0 ? [] : ["Shift"] });
+  }
+}
+
+export async function focusEditor(page: Page) {
+  await page.getByTestId("annotation-editor").focus();
+}
+
+export type ShapeBox = { x: number; y: number; w: number; h: number };
+
+export async function getShapeBoxes(page: Page): Promise<ShapeBox[]> {
+  return page.locator(markupShapes).evaluateAll((nodes) =>
+    nodes.map((n) => {
+      const r = n.getBoundingClientRect();
+      return { x: r.x, y: r.y, w: r.width, h: r.height };
+    }),
+  );
+}
+
+export function countMovedBoxes(
+  before: ShapeBox[],
+  after: ShapeBox[],
+  threshold = 8,
+): number {
+  return before.filter(
+    (b, i) => Math.hypot(b.x - after[i]!.x, b.y - after[i]!.y) > threshold,
+  ).length;
+}
+
+export function totalBoxMovement(before: ShapeBox[], after: ShapeBox[]): number {
+  if (before.length !== after.length) return 0;
+  return before.reduce(
+    (sum, b, i) => sum + Math.hypot(b.x - after[i]!.x, b.y - after[i]!.y),
+    0,
+  );
+}
+
+export async function waitForSaved(page: Page) {
+  await expect(page.getByTestId("save-status")).toHaveText("Saved", { timeout: 10000 });
+}
+
+export async function fetchMarkupStack(
+  request: APIRequestContext,
+  ws: string,
+  project: string,
+  sessionId: string,
+): Promise<
+  Array<{
+    id: string;
+    type: string;
+    x?: number;
+    y?: number;
+    zIndex: number;
+    groupId?: string;
+  }>
+> {
+  const doc = await fetchSessionDocument(request, ws, project, sessionId);
+  const active =
+    doc.document.artboards.find((a) => a.id === doc.document.activeArtboardId) ??
+    doc.document.artboards[0];
+  return active?.markupStack ?? [];
+}
+
 /** Double-click within the image area using fractional coordinates (0–1). */
 export async function doubleClickFrameContent(page: Page, x: number, y: number) {
   const box = await frameContentBox(page);
@@ -243,19 +381,6 @@ export async function selectBaseImage(page: Page) {
   await expect(page.getByTestId("image-selection-overlay")).toBeVisible();
 }
 
-export async function fetchMarkupStack(
-  request: APIRequestContext,
-  ws: string,
-  project: string,
-  sessionId: string,
-): Promise<Array<{ id: string; type: string; x?: number; zIndex: number }>> {
-  const doc = await fetchSessionDocument(request, ws, project, sessionId);
-  const active =
-    doc.document.artboards.find((a) => a.id === doc.document.activeArtboardId) ??
-    doc.document.artboards[0];
-  return active?.markupStack ?? [];
-}
-
 export async function fetchSessionDocument(
   request: APIRequestContext,
   ws: string,
@@ -280,7 +405,14 @@ export async function fetchSessionDocument(
         artboardWidth: number;
         artboardHeight: number;
         imageId: string | null;
-        markupStack: Array<{ id: string; type: string; x?: number; zIndex: number }>;
+        markupStack: Array<{
+          id: string;
+          type: string;
+          x?: number;
+          y?: number;
+          zIndex: number;
+          groupId?: string;
+        }>;
       }>;
     };
   };
