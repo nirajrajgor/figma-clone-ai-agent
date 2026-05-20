@@ -93,6 +93,52 @@ export async function openSession(
   await page.getByTestId("base-image").waitFor();
 }
 
+export async function openBlankDesignFile(
+  page: Page,
+  ws: string,
+  project: string,
+  sessionId: string,
+) {
+  await page.goto(
+    `/${encodeURIComponent(ws)}/${encodeURIComponent(project)}/sessions/${sessionId}`,
+  );
+  await page.getByTestId("annotation-editor-loading").waitFor({ state: "hidden" });
+  await page.getByTestId("frame-content").waitFor();
+  await expect(page.getByTestId("base-image")).toHaveCount(0);
+}
+
+/** Create a design file via API with no image (optional device preset). */
+export async function createBlankDesignFile(
+  request: APIRequestContext,
+  ws: string,
+  project: string,
+  title: string,
+  preset: CreateSessionOptions["preset"] = "phone",
+) {
+  return createSession(request, ws, project, title, { preset, withImage: false });
+}
+
+/** Create a design file through the UI dialog (no image). */
+export async function createBlankDesignFileViaUi(
+  page: Page,
+  ws: string,
+  project: string,
+  title: string,
+  preset: CreateSessionOptions["preset"] = "phone",
+) {
+  await page.goto(`/${encodeURIComponent(ws)}/${encodeURIComponent(project)}`);
+  await page.getByTestId("create-session-open").click();
+  await page.getByTestId("create-design-file-form").waitFor();
+  await page.getByTestId("session-title-input").fill(title);
+  await page.getByTestId("device-preset-select").click();
+  const presetLabel =
+    preset === "phone" ? "Phone" : preset === "tablet" ? "Tablet" : "Desktop";
+  await page.getByRole("option", { name: presetLabel }).click();
+  await page.getByTestId("create-design-file-submit").click();
+  await expect(page).toHaveURL(/\/sessions\//);
+  await page.getByTestId("annotation-editor-loading").waitFor({ state: "hidden" });
+}
+
 export async function drawRectangle(page: Page) {
   await page.getByTestId("tool-rectangle").click();
   await dragViewport(page, 0.25, 0.25, 0.55, 0.55);

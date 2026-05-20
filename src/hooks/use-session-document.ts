@@ -8,7 +8,7 @@ import {
 import type { DevicePresetId } from "@/lib/markup/device-presets";
 import { devicePresetSize } from "@/lib/markup/device-presets";
 import type { MarkupObject } from "@/lib/markup/types";
-import { layoutFromArtboard } from "@/lib/markup/artboard-layout";
+import { layoutFromArtboard, layoutFromBlankArtboard } from "@/lib/markup/artboard-layout";
 import {
   activeMarkupStack,
   createArtboardFromDrag,
@@ -49,20 +49,22 @@ export function useSessionDocument(
     ? (document.images[activeArtboard.imageId] ?? null)
     : null;
   const layout = activeArtboard
-    ? (() => {
-        const crop = resolveImageCrop(
-          activeArtboard,
-          activeImage?.width ?? 0,
-          activeImage?.height ?? 0,
-        );
-        return layoutFromArtboard(
-          activeArtboard,
-          activeImage?.width ?? 0,
-          activeImage?.height ?? 0,
-          crop.width,
-          crop.height,
-        );
-      })()
+    ? activeImage
+      ? (() => {
+          const crop = resolveImageCrop(
+            activeArtboard,
+            activeImage.width,
+            activeImage.height,
+          );
+          return layoutFromArtboard(
+            activeArtboard,
+            activeImage.width,
+            activeImage.height,
+            crop.width,
+            crop.height,
+          );
+        })()
+      : layoutFromBlankArtboard(activeArtboard)
     : null;
   const objects = markupPreview ?? activeMarkupStack(document);
 

@@ -54,3 +54,4 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 npm run e2e
 | 025 | `e2e/v3-basic-crop.spec.ts` | Done |
 | 027 | `e2e/v3-replace-image.spec.ts` | Done |
 | 029 | `e2e/v3-export-formats.spec.ts` | Done |
+| 036 | `e2e/v4-blank-design-file.spec.ts` | Done |

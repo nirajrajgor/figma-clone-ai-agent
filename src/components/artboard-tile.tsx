@@ -140,7 +140,7 @@ function ArtboardTileInner({
             />
           )}
         </svg>
-        {image ? (
+        {image || displayW > 0 ? (
           <div
             className="absolute overflow-hidden bg-white ring-1 ring-black/5"
             style={{
@@ -148,24 +148,30 @@ function ArtboardTileInner({
               top: boardLayout.imageOffsetY,
               width: displayW,
               height: displayH,
-              opacity: imageOpacity / 100,
+              opacity: image ? imageOpacity / 100 : 1,
               borderRadius: frameCornerRadius,
             }}
             data-testid={isActive ? "frame-content" : undefined}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={image.url}
-              alt={artboard.title}
-              draggable={false}
-              data-testid={isActive ? "base-image" : undefined}
-              className={`block max-w-none select-none pointer-events-none ${cropEditing ? "object-contain" : ""}`}
-              style={imageStyles}
-            />
+            {image && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={image.url}
+                alt={artboard.title}
+                draggable={false}
+                data-testid={isActive ? "base-image" : undefined}
+                className={`block max-w-none select-none pointer-events-none ${cropEditing ? "object-contain" : ""}`}
+                style={imageStyles}
+              />
+            )}
             <svg
               width={displayW}
               height={displayH}
-              viewBox={`${crop.x} ${crop.y} ${crop.width} ${crop.height}`}
+              viewBox={
+                image
+                  ? `${crop.x} ${crop.y} ${crop.width} ${crop.height}`
+                  : `0 0 ${displayW} ${displayH}`
+              }
               className="absolute left-0 top-0"
               data-testid={isActive ? "markup-layer" : undefined}
               style={{ pointerEvents: cropEditing ? "none" : "none" }}

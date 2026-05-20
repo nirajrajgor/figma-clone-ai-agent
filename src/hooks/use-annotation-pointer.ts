@@ -5,6 +5,7 @@ import {
   applyArtboardResize,
   applyImageResize,
   layoutFromArtboard,
+  layoutFromBlankArtboard,
   resolveImageFillMode,
   type ArtboardLayout,
   type ImageFillMode,
@@ -279,14 +280,26 @@ export function useAnnotationPointer(session: SessionDocApi, ctx: PointerContext
       const boardImage = targetBoard.imageId ? document.images[targetBoard.imageId] : null;
       const imgW = boardImage?.width ?? 0;
       const imgH = boardImage?.height ?? 0;
-      const boardCrop = resolveImageCrop(targetBoard, imgW, imgH);
-      const boardLayout = layoutFromArtboard(
-        targetBoard,
-        imgW,
-        imgH,
-        boardCrop.width,
-        boardCrop.height,
-      );
+      const boardLayout = boardImage
+        ? (() => {
+            const boardCrop = resolveImageCrop(targetBoard, imgW, imgH);
+            return layoutFromArtboard(
+              targetBoard,
+              imgW,
+              imgH,
+              boardCrop.width,
+              boardCrop.height,
+            );
+          })()
+        : layoutFromBlankArtboard(targetBoard);
+      const boardCrop = boardImage
+        ? resolveImageCrop(targetBoard, imgW, imgH)
+        : {
+            x: 0,
+            y: 0,
+            width: boardLayout.imageDisplayWidth,
+            height: boardLayout.imageDisplayHeight,
+          };
       const boardFillMode = resolveImageFillMode(targetBoard);
       const displayPt = artboardToImage(
         local.x,

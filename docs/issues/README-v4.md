@@ -49,5 +49,5 @@ Run tests listed in the issue. Mark acceptance criteria in the issue when done.
 | [033](./033-design-file-ui-copy.md) | UI copy: design file / Designer | AFK | **Done** | — |
 | [034](./034-add-frame-from-preset.md) | Add device frame from preset in editor | AFK | **Done** | 030 |
 | [035](./035-export-blank-frame.md) | Export blank frame (no image layer) | AFK | **Done** | — |
-| [036](./036-e2e-blank-design-file.md) | E2E: blank design file + preset create | AFK | Ready | 032 |
+| [036](./036-e2e-blank-design-file.md) | E2E: blank design file + preset create | AFK | **Done** | 032 |
 | [037](./037-review-tools-toolbar.md) | Review tools group in toolbar | AFK | **Done** | 033 (labels) |

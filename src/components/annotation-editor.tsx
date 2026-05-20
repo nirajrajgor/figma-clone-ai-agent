@@ -39,7 +39,7 @@ import {
   updateObjects,
 } from "@/lib/markup/document";
 import { hitTest } from "@/lib/markup/hit-test";
-import { layoutFromArtboard, applyFillModeLayout, resolveImageFillMode, type ArtboardLayout, type ImageFillMode } from "@/lib/markup/artboard-layout";
+import { layoutFromArtboard, layoutFromBlankArtboard, applyFillModeLayout, resolveImageFillMode, type ArtboardLayout, type ImageFillMode } from "@/lib/markup/artboard-layout";
 import { artboardToImage, clientToArtboard, FRAME_LABEL_OFFSET, isInImageContent } from "@/lib/markup/artboard";
 import {
   cropToStored,
@@ -185,10 +185,18 @@ export function AnnotationEditor({
 
   const width = activeImage?.width ?? 0;
   const height = activeImage?.height ?? 0;
-  const imageCrop = useMemo(
-    () => resolveImageCrop(activeArtboard, width, height),
-    [activeArtboard, width, height],
-  );
+  const imageCrop = useMemo(() => {
+    if (!activeArtboard) return { x: 0, y: 0, width: 0, height: 0 };
+    if (!activeImage && layout) {
+      return {
+        x: 0,
+        y: 0,
+        width: layout.imageDisplayWidth,
+        height: layout.imageDisplayHeight,
+      };
+    }
+    return resolveImageCrop(activeArtboard, width, height);
+  }, [activeArtboard, activeImage, layout, width, height]);
 
   const enterCropMode = useCallback(() => {
     if (!activeArtboard || !width || !height) return;
@@ -1063,8 +1071,12 @@ export function AnnotationEditor({
             const image = artboard.imageId ? document.images[artboard.imageId] : null;
             const imgW = image?.width ?? 0;
             const imgH = image?.height ?? 0;
-            const boardCrop = resolveImageCrop(artboard, imgW, imgH);
-            let boardLayout = layoutFromArtboard(artboard, imgW, imgH, boardCrop.width, boardCrop.height);
+            const boardCrop = image
+              ? resolveImageCrop(artboard, imgW, imgH)
+              : { x: 0, y: 0, width: 0, height: 0 };
+            let boardLayout = image
+              ? layoutFromArtboard(artboard, imgW, imgH, boardCrop.width, boardCrop.height)
+              : layoutFromBlankArtboard(artboard);
             if (isActive && layoutPreview) boardLayout = layoutPreview;
             if (isActive && imageMovePreview?.artboardId === artboard.id) {
               boardLayout = {
