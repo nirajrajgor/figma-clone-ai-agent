@@ -142,7 +142,7 @@ function ArtboardTileInner({
         </svg>
         {image || displayW > 0 ? (
           <div
-            className="absolute overflow-hidden bg-white ring-1 ring-black/5"
+            className={`absolute overflow-hidden bg-white ${image ? "ring-1 ring-black/5" : ""}`}
             style={{
               left: boardLayout.imageOffsetX,
               top: boardLayout.imageOffsetY,

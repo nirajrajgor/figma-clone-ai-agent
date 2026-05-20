@@ -145,18 +145,17 @@ export function layoutsMatchFillMode(
   );
 }
 
-/** Layout for artboards with no image layer (blank / wireframe frame). */
+/** Layout for artboards with no image layer — drawable area is the full frame. */
 export function layoutFromBlankArtboard(
   stored: StoredArtboardLayout & { artboardWidth: number; artboardHeight: number },
 ): ArtboardLayout {
-  const area = contentArea(stored.artboardWidth, stored.artboardHeight);
   return normalizeArtboardLayout({
     artboardWidth: stored.artboardWidth,
     artboardHeight: stored.artboardHeight,
-    imageOffsetX: stored.imageOffsetX ?? area.x,
-    imageOffsetY: stored.imageOffsetY ?? area.y,
-    imageDisplayWidth: stored.imageDisplayWidth ?? area.width,
-    imageDisplayHeight: stored.imageDisplayHeight ?? area.height,
+    imageOffsetX: 0,
+    imageOffsetY: 0,
+    imageDisplayWidth: stored.artboardWidth,
+    imageDisplayHeight: stored.artboardHeight,
   });
 }
 

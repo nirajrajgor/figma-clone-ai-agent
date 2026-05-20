@@ -170,8 +170,10 @@ export function createEmptyArtboard(
     y,
     artboardWidth: size.width,
     artboardHeight: size.height,
-    imageOffsetX: FRAME_PADDING,
-    imageOffsetY: FRAME_PADDING,
+    imageOffsetX: 0,
+    imageOffsetY: 0,
+    imageDisplayWidth: size.width,
+    imageDisplayHeight: size.height,
     imageId: null,
     markupStack: [],
   };

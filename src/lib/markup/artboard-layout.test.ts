@@ -9,12 +9,26 @@ import {
   defaultArtboardLayout,
   fitArtboardToImage,
   layoutFromArtboard,
+  layoutFromBlankArtboard,
   minArtboardSize,
   normalizeArtboardLayout,
   resolveArtboardLayout,
 } from "./artboard-layout";
 
 describe("artboard-layout", () => {
+  it("blank artboard layout uses full frame as drawable area", () => {
+    expect(
+      layoutFromBlankArtboard({ artboardWidth: 390, artboardHeight: 844 }),
+    ).toEqual({
+      artboardWidth: 390,
+      artboardHeight: 844,
+      imageOffsetX: 0,
+      imageOffsetY: 0,
+      imageDisplayWidth: 390,
+      imageDisplayHeight: 844,
+    });
+  });
+
   it("defaults layout from image size", () => {
     expect(defaultArtboardLayout(800, 600)).toEqual({
       artboardWidth: 896,

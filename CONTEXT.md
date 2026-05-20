@@ -49,7 +49,7 @@ The Figma-style white frame on the canvas: fixed pixel width and height, optiona
 _Avoid_: Canvas (the whole app), design file, export bounds
 
 **Frame content**:
-The rectangular region inside an **artboard** where content is drawn. Coordinates are measured in frame pixels (origin top-left). An **image layer**, when present, is laid out inside this region; **scene objects** stack above it.
+The rectangular region inside an **artboard** where content is drawn. Coordinates are measured in frame pixels (origin top-left). On **blank frames**, frame content is the full artboard (no inset). When an **image layer** is present, content is inset with padding around the image; **scene objects** stack above the image.
 _Avoid_: Layer (Photoshop sense), viewport
 
 **Design file title** _(UI; legacy: session title)_:
