@@ -16,8 +16,23 @@ export function getDb() {
     const sqlite = new Database(DB_PATH);
     sqlite.pragma("journal_mode = WAL");
     sqlite.pragma("foreign_keys = ON");
-    dbInstance = drizzle(sqlite, { schema });
-    migrate(dbInstance, { migrationsFolder: path.join(process.cwd(), "drizzle") });
+    const db = drizzle(sqlite, { schema });
+    try {
+      migrate(db, { migrationsFolder: path.join(process.cwd(), "drizzle") });
+    } catch (err) {
+      sqlite.close();
+      if (fs.existsSync(DB_PATH)) {
+        for (const suffix of ["", "-wal", "-shm"]) {
+          try {
+            fs.unlinkSync(DB_PATH + suffix);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      throw err;
+    }
+    dbInstance = db;
   }
   return dbInstance;
 }

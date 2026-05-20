@@ -85,13 +85,25 @@ export function EntryFlow() {
     return data.exists;
   }
 
+  async function apiErrorMessage(res: Response, fallback: string) {
+    try {
+      const data = await readJsonResponse<{ error?: string }>(res);
+      return data.error ?? fallback;
+    } catch (err) {
+      return err instanceof Error ? err.message : fallback;
+    }
+  }
+
   async function createWorkspace(name: string) {
     const res = await fetch("/api/workspaces", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     });
-    return res.ok;
+    if (!res.ok) {
+      throw new Error(await apiErrorMessage(res, "Could not create workspace"));
+    }
+    return true;
   }
 
   async function createProject(ws: string, name: string) {
@@ -100,7 +112,10 @@ export function EntryFlow() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     });
-    return res.ok;
+    if (!res.ok) {
+      throw new Error(await apiErrorMessage(res, "Could not create project"));
+    }
+    return true;
   }
 
   async function onWorkspaceSubmit(e: FormEvent) {
@@ -121,9 +136,10 @@ export function EntryFlow() {
       return;
     }
     if (!exists) {
-      const ok = await createWorkspace(name);
-      if (!ok) {
-        setError("Could not create workspace");
+      try {
+        await createWorkspace(name);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not create workspace");
         setLoading(false);
         return;
       }
@@ -152,9 +168,10 @@ export function EntryFlow() {
     }
     setProjectExists(exists);
     if (!exists) {
-      const ok = await createProject(ws, name);
-      if (!ok) {
-        setError("Could not create project");
+      try {
+        await createProject(ws, name);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not create project");
         setLoading(false);
         return;
       }
