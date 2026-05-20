@@ -1,5 +1,6 @@
 import type { Bounds, ResizeHandle } from "./bounds";
 import { objectBounds } from "./bounds";
+import { descendantLeaves } from "./groups";
 import { updateObject } from "./document";
 import type {
   EllipseMarkup,
@@ -122,6 +123,60 @@ function resizeObject(
   }
 }
 
+function scaleMemberInBounds(o: MarkupObject, start: Bounds, next: Bounds): MarkupObject {
+  const sx = start.width ? next.width / start.width : 1;
+  const sy = start.height ? next.height / start.height : 1;
+  const mapX = (x: number) => next.x + (x - start.x) * sx;
+  const mapY = (y: number) => next.y + (y - start.y) * sy;
+
+  switch (o.type) {
+    case "rectangle":
+    case "ellipse":
+    case "redact":
+      return {
+        ...o,
+        x: mapX(o.x),
+        y: mapY(o.y),
+        width: Math.max(MIN_SIZE, o.width * sx),
+        height: Math.max(MIN_SIZE, o.height * sy),
+      };
+    case "arrow":
+    case "line":
+      return { ...o, x1: mapX(o.x1), y1: mapY(o.y1), x2: mapX(o.x2), y2: mapY(o.y2) };
+    case "freehand":
+      return {
+        ...o,
+        points: o.points.map(([px, py]) => [mapX(px), mapY(py)] as [number, number]),
+      };
+    case "text": {
+      const ratio = start.height ? next.height / start.height : 1;
+      return {
+        ...o,
+        x: mapX(o.x),
+        y: mapY(o.y),
+        fontSize: Math.max(8, Math.round(o.fontSize * ratio)),
+      };
+    }
+    default:
+      return o;
+  }
+}
+
+function applyGroupResize(
+  objects: MarkupObject[],
+  groupId: string,
+  handle: ResizeHandle,
+  startBounds: Bounds,
+  pt: { x: number; y: number },
+): MarkupObject[] {
+  const nextBounds = resizeBounds(startBounds, handle, pt);
+  let stack = objects;
+  for (const m of descendantLeaves(objects, groupId)) {
+    stack = updateObject(stack, m.id, scaleMemberInBounds(m, startBounds, nextBounds));
+  }
+  return stack;
+}
+
 export function applyResize(
   objects: MarkupObject[],
   ids: Set<string>,
@@ -133,6 +188,9 @@ export function applyResize(
   const id = [...ids][0];
   const o = objects.find((item) => item.id === id);
   if (!o) return objects;
+  if (o.type === "group") {
+    return applyGroupResize(objects, id, handle, startBounds, pt);
+  }
   const bounds = objectBounds(o) ?? startBounds;
   const resized = resizeObject(o, handle, bounds, pt);
   return updateObject(objects, id, resized);

@@ -63,6 +63,8 @@ export function displayToIntrinsic(
   displayHeight: number,
 ) {
   if (!displayWidth || !displayHeight) return { x: displayX, y: displayY };
+  // Blank / wireframe frames: markup lives in frame content (display) space
+  if (!intrinsicWidth || !intrinsicHeight) return { x: displayX, y: displayY };
   return {
     x: (displayX / displayWidth) * intrinsicWidth,
     y: (displayY / displayHeight) * intrinsicHeight,

@@ -1,3 +1,4 @@
+import { expandSelectionIds, groupBounds, isGroup } from "./groups";
 import type { MarkupObject, TextMarkup } from "./types";
 
 export type Bounds = { x: number; y: number; width: number; height: number };
@@ -76,9 +77,18 @@ export function objectBounds(o: MarkupObject): Bounds | null {
     }
     case "text":
       return textBounds(o);
+    case "group":
+      return null;
     default:
       return null;
   }
+}
+
+export function boundsForSelection(objects: MarkupObject[], id: string): Bounds | null {
+  const o = objects.find((x) => x.id === id);
+  if (!o) return null;
+  if (isGroup(o)) return groupBounds(objects, o.id);
+  return objectBounds(o);
 }
 
 export function unionBounds(items: Bounds[]): Bounds | null {
@@ -91,11 +101,20 @@ export function unionBounds(items: Bounds[]): Bounds | null {
 }
 
 export function selectionBounds(objects: MarkupObject[], ids: Set<string>): Bounds | null {
-  const bounds = objects
-    .filter((o) => ids.has(o.id))
-    .map(objectBounds)
-    .filter((b): b is Bounds => b !== null);
-  return unionBounds(bounds);
+  const expanded = expandSelectionIds(objects, ids);
+  const boxes: Bounds[] = [];
+  for (const id of expanded) {
+    const o = objects.find((x) => x.id === id);
+    if (!o) continue;
+    if (isGroup(o)) {
+      const b = groupBounds(objects, id);
+      if (b) boxes.push(b);
+      continue;
+    }
+    const b = objectBounds(o);
+    if (b) boxes.push(b);
+  }
+  return unionBounds(boxes);
 }
 
 export function boxHandles(bounds: Bounds): HandlePoint[] {
@@ -120,6 +139,10 @@ export function selectionHandles(objects: MarkupObject[], ids: Set<string>): Han
   if (ids.size !== 1) return [];
   const o = objects.find((item) => ids.has(item.id));
   if (!o) return [];
+  if (o.type === "group") {
+    const b = groupBounds(objects, o.id);
+    return b ? boxHandles(b) : [];
+  }
   if (o.type === "arrow" || o.type === "line") {
     return [
       { id: "start", x: o.x1, y: o.y1 },

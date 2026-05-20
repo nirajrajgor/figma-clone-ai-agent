@@ -1,3 +1,4 @@
+import { drawableObjects, resolveHitTarget } from "./groups";
 import type { MarkupObject } from "./types";
 
 function distToSegment(
@@ -29,8 +30,15 @@ function hitEllipse(x: number, y: number, o: { x: number; y: number; width: numb
 }
 
 export function hitTest(objects: MarkupObject[], x: number, y: number): string | null {
-  for (let i = objects.length - 1; i >= 0; i--) {
-    const o = objects[i];
+  const leaf = hitTestLeaf(objects, x, y);
+  return leaf ? resolveHitTarget(objects, leaf) : null;
+}
+
+/** Topmost drawable at a point (leaf id, before group resolution). */
+export function hitTestLeaf(objects: MarkupObject[], x: number, y: number): string | null {
+  const drawable = drawableObjects(objects);
+  for (let i = drawable.length - 1; i >= 0; i--) {
+    const o = drawable[i]!;
     if (hitObject(o, x, y)) return o.id;
   }
   return null;
@@ -86,7 +94,7 @@ export function objectsInRect(
   const maxX = Math.max(x1, x2);
   const minY = Math.min(y1, y2);
   const maxY = Math.max(y1, y2);
-  return objects
+  return drawableObjects(objects)
     .filter((o) => {
       for (let x = minX; x <= maxX; x += (maxX - minX) / 4 || 1) {
         for (let y = minY; y <= maxY; y += (maxY - minY) / 4 || 1) {
