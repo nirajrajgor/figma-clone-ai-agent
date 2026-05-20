@@ -2,9 +2,15 @@ import path from "path";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { FRAME_PADDING } from "@/lib/markup/artboard";
-import { defaultArtboardLayout } from "@/lib/markup/artboard-layout";
+import { defaultArtboardLayout, layoutFromBlankArtboard } from "@/lib/markup/artboard-layout";
 import type { ImageCrop } from "@/lib/markup/image-crop";
-import { composeExport, composeExportPng, exportFrameDimensions } from "./compositor";
+import { createEmptyArtboard } from "@/lib/markup/session-document";
+import {
+  composeBlankExportPng,
+  composeExport,
+  composeExportPng,
+  exportFrameDimensions,
+} from "./compositor";
 import { DEFAULT_EXPORT_OPTIONS } from "./export-options";
 import type { EllipseMarkup, RedactMarkup, RectangleMarkup } from "@/lib/markup/types";
 import { DEFAULT_REDACT_FILL } from "@/lib/markup/types";
@@ -135,6 +141,48 @@ describe("export compositor", () => {
     const centerFaded = await sharp(faded).raw().toBuffer({ resolveWithObject: true });
     const idx = (16 * 32 + 16) * centerOpaque.info.channels;
     expect(centerFaded.data[idx]).toBeGreaterThan(centerOpaque.data[idx]!);
+  });
+
+  it("exports blank artboard at frame dimensions with white background", async () => {
+    const artboard = createEmptyArtboard([], 0, 0, { width: 400, height: 300 });
+    const layout = layoutFromBlankArtboard(artboard);
+    const buf = await composeBlankExportPng([], layout);
+    expect(buf.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+    const meta = await sharp(buf).metadata();
+    expect(meta.width).toBe(400);
+    expect(meta.height).toBe(300);
+    const corner = await sharp(buf).extract({ left: 0, top: 0, width: 1, height: 1 }).raw().toBuffer();
+    expect(corner[0]).toBe(255);
+    expect(corner[1]).toBe(255);
+    expect(corner[2]).toBe(255);
+  });
+
+  it("exports blank artboard with markup as a non-empty PNG", async () => {
+    const artboard = createEmptyArtboard([], 0, 0, { width: 200, height: 160 });
+    const layout = layoutFromBlankArtboard(artboard);
+    const rect: RectangleMarkup = {
+      id: "blank-rect",
+      zIndex: 0,
+      type: "rectangle",
+      x: 12,
+      y: 12,
+      width: 40,
+      height: 24,
+      strokeColor: "#ff0000",
+      strokeWidth: 2,
+      fillColor: "rgba(255,0,0,0.5)",
+      fillEnabled: true,
+    };
+    const empty = await composeBlankExportPng([], layout);
+    const withRect = await composeBlankExportPng([rect], layout);
+    expect(withRect.length).toBeGreaterThan(empty.length);
+    const sampleX = Math.round(layout.imageOffsetX + 20);
+    const sampleY = Math.round(layout.imageOffsetY + 20);
+    const pixel = await sharp(withRect)
+      .extract({ left: sampleX, top: sampleY, width: 1, height: 1 })
+      .raw()
+      .toBuffer();
+    expect(pixel[0]).toBeGreaterThan(200);
   });
 
   it("clips frame content to rounded corners on export", async () => {

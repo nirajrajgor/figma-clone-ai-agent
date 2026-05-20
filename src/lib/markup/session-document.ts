@@ -209,11 +209,25 @@ export function createArtboardFromDrag(
   };
 }
 
+export const PRESET_ARTBOARD_OFFSET_X = 80;
+
 export function placementForNewArtboard(artboards: StoredArtboard[]) {
   if (artboards.length === 0) return { x: 0, y: 0 };
   const right = Math.max(...artboards.map((a) => a.x + a.artboardWidth));
   const top = Math.min(...artboards.map((a) => a.y));
-  return { x: right + 80, y: top };
+  return { x: right + PRESET_ARTBOARD_OFFSET_X, y: top };
+}
+
+/** Place a new preset-sized frame to the right of the active artboard. */
+export function placementOffsetFromActiveArtboard(
+  active: StoredArtboard | null | undefined,
+  artboards: StoredArtboard[] = [],
+  offsetX = PRESET_ARTBOARD_OFFSET_X,
+) {
+  if (active) {
+    return { x: active.x + active.artboardWidth + offsetX, y: active.y };
+  }
+  return placementForNewArtboard(artboards);
 }
 
 export function documentBounds(document: Pick<StoredSessionDocument, "artboards">) {

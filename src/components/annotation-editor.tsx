@@ -3,6 +3,7 @@
 import {
   ArrowUp,
   ArrowDown,
+  ChevronDown,
   Plus,
   Redo2,
   Undo2,
@@ -10,13 +11,19 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ANNOTATION_TOOLS } from "@/components/annotation-tools";
+import { DESIGN_TOOLS, REVIEW_TOOLS } from "@/components/annotation-tools";
 import { ArtboardTile } from "@/components/artboard-tile";
 import { ActionTooltip } from "@/components/action-tooltip";
 import { AnnotationInspector } from "@/components/annotation-inspector";
 import { useEditorSidebar } from "@/components/editor-sidebar-context";
 import { CanvasSelectionOverlay } from "@/components/canvas-selection-overlay";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -41,6 +48,7 @@ import {
   resolveImageCrop,
   type ImageCrop,
 } from "@/lib/markup/image-crop";
+import { DEVICE_PRESETS, type DevicePresetId } from "@/lib/markup/device-presets";
 import { canvasToArtboardLocal, documentBounds, type ClientSessionDocument } from "@/lib/markup/session-document";
 import type { TextInlineEditState } from "@/components/text-inline-editor";
 import { useAnnotationPointer } from "@/hooks/use-annotation-pointer";
@@ -120,6 +128,7 @@ export function AnnotationEditor({
     patchActiveArtboard,
     patchArtboard,
     addEmptyArtboard,
+    addArtboardFromPreset,
     createArtboardAtDrag,
     transferImageToArtboard,
     artboardAtCanvasPoint,
@@ -155,12 +164,24 @@ export function AnnotationEditor({
     documentRef.current = document;
   }, [document]);
 
-  const handleAddArtboard = useCallback(() => {
-    addEmptyArtboard();
+  const focusNewArtboard = useCallback(() => {
     setFrameSelected(true);
     setImageSelected(false);
     setSelected(new Set());
-  }, [addEmptyArtboard]);
+  }, []);
+
+  const handleAddArtboard = useCallback(() => {
+    addEmptyArtboard();
+    focusNewArtboard();
+  }, [addEmptyArtboard, focusNewArtboard]);
+
+  const handleAddPresetArtboard = useCallback(
+    (presetId: DevicePresetId) => {
+      addArtboardFromPreset(presetId);
+      focusNewArtboard();
+    },
+    [addArtboardFromPreset, focusNewArtboard],
+  );
 
   const width = activeImage?.width ?? 0;
   const height = activeImage?.height ?? 0;
@@ -818,45 +839,100 @@ export function AnnotationEditor({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex shrink-0 items-center justify-between gap-2 border-b bg-background px-3 py-1.5">
           <div className="flex min-w-0 flex-1 items-center gap-1">
-            <ToggleGroup
-              value={[tool]}
-              onValueChange={(v) => {
-                if (v.length === 0) return;
-                setTool(v[0] as MarkupTool);
-                setSelected(new Set());
-                setFrameSelected(false);
-                setImageSelected(false);
-              }}
-              variant="outline"
-              size="sm"
-              spacing={0}
+            <div
+              className="flex items-center"
               data-testid="tool-toolbar"
             >
-              {ANNOTATION_TOOLS.map((t) => (
-                <ActionTooltip key={t.id} label={`${t.label} (${t.shortcut})`}>
-                  <ToggleGroupItem
-                    value={t.id}
-                    aria-label={t.label}
-                    data-testid={`tool-${t.id}`}
+              {(
+                [
+                  { tools: DESIGN_TOOLS, tooltipPrefix: undefined },
+                  { tools: REVIEW_TOOLS, tooltipPrefix: "Review" },
+                ] as const
+              ).map(({ tools, tooltipPrefix }, groupIndex) => (
+                <span key={tooltipPrefix ?? "design"} className="contents">
+                  {groupIndex > 0 ? (
+                    <Separator orientation="vertical" className="mx-1 h-5" />
+                  ) : null}
+                  <ToggleGroup
+                    value={[tool]}
+                    onValueChange={(v) => {
+                      if (v.length === 0) return;
+                      setTool(v[0] as MarkupTool);
+                      setSelected(new Set());
+                      setFrameSelected(false);
+                      setImageSelected(false);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    spacing={0}
                   >
-                    {t.icon}
-                  </ToggleGroupItem>
-                </ActionTooltip>
+                    {tools.map((t) => (
+                      <ActionTooltip
+                        key={t.id}
+                        label={
+                          tooltipPrefix
+                            ? `${tooltipPrefix} — ${t.label} (${t.shortcut})`
+                            : `${t.label} (${t.shortcut})`
+                        }
+                      >
+                        <ToggleGroupItem
+                          value={t.id}
+                          aria-label={t.label}
+                          data-testid={`tool-${t.id}`}
+                        >
+                          {t.icon}
+                        </ToggleGroupItem>
+                      </ActionTooltip>
+                    ))}
+                  </ToggleGroup>
+                </span>
               ))}
-            </ToggleGroup>
+            </div>
             <Separator orientation="vertical" className="mx-1 h-5" />
-            <ActionTooltip label="Add artboard">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                data-testid="add-artboard"
-                aria-label="Add artboard"
-                onClick={handleAddArtboard}
-              >
-                <Plus className="size-4" />
-              </Button>
-            </ActionTooltip>
+            <div className="inline-flex items-stretch">
+              <ActionTooltip label="Add artboard">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="rounded-r-none"
+                  data-testid="add-artboard"
+                  aria-label="Add artboard"
+                  onClick={handleAddArtboard}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </ActionTooltip>
+              <DropdownMenu>
+                <ActionTooltip label="Add device frame preset">
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-7 w-6 shrink-0 rounded-l-none px-0"
+                        aria-label="Add device frame preset"
+                        data-testid="add-device-frame-menu"
+                      >
+                        <ChevronDown className="size-3.5" />
+                      </Button>
+                    }
+                  />
+                </ActionTooltip>
+                <DropdownMenuContent align="start">
+                  {DEVICE_PRESETS.map((preset) => (
+                    <DropdownMenuItem
+                      key={preset.id}
+                      data-testid={`add-device-frame-${preset.id}`}
+                      onClick={() => handleAddPresetArtboard(preset.id)}
+                    >
+                      {preset.label} ({preset.width}×{preset.height})
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <Separator orientation="vertical" className="mx-1 h-5" />
             <ActionTooltip label="Undo (Ctrl+Z)" disabled={!canUndo}>
               <Button

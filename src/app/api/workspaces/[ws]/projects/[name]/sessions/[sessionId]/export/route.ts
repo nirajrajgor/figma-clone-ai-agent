@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { composeExport } from "@/lib/export/compositor";
+import { composeBlankExport, composeExport } from "@/lib/export/compositor";
 import {
   exportContentType,
   exportFilename,
   parseExportOptions,
 } from "@/lib/export/export-options";
-import { layoutFromArtboard } from "@/lib/markup/artboard-layout";
+import { layoutFromArtboard, layoutFromBlankArtboard } from "@/lib/markup/artboard-layout";
 import { resolveImageCrop } from "@/lib/markup/image-crop";
 import { resolveStoredPath } from "@/lib/images";
 import { getActiveArtboard, resolveFrameCornerRadius, resolveImageOpacity } from "@/lib/markup/session-document";
@@ -28,8 +28,7 @@ async function exportSession(
   }
   const document = sessionDocument(session);
   const active = getActiveArtboard(document);
-  const image = active?.imageId ? document.images[active.imageId] : null;
-  if (!active || !image) {
+  if (!active) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -39,21 +38,39 @@ async function exportSession(
     return NextResponse.json({ error: options.error }, { status: 400 });
   }
 
-  const crop = resolveImageCrop(active, image.width, image.height);
-  const layout = layoutFromArtboard(active, image.width, image.height, crop.width, crop.height);
-  const bytes = await composeExport(
-    resolveStoredPath(image.path),
-    active.markupStack,
-    image.width,
-    image.height,
-    layout,
-    crop,
-    options,
-    {
-      imageOpacity: resolveImageOpacity(active),
-      frameCornerRadius: resolveFrameCornerRadius(active),
-    },
-  );
+  const frameStyle = {
+    imageOpacity: resolveImageOpacity(active),
+    frameCornerRadius: resolveFrameCornerRadius(active),
+  };
+
+  const image = active.imageId ? document.images[active.imageId] : null;
+  const bytes = image
+    ? await (async () => {
+        const crop = resolveImageCrop(active, image.width, image.height);
+        const layout = layoutFromArtboard(
+          active,
+          image.width,
+          image.height,
+          crop.width,
+          crop.height,
+        );
+        return composeExport(
+          resolveStoredPath(image.path),
+          active.markupStack,
+          image.width,
+          image.height,
+          layout,
+          crop,
+          options,
+          frameStyle,
+        );
+      })()
+    : await composeBlankExport(
+        active.markupStack,
+        layoutFromBlankArtboard(active),
+        options,
+        frameStyle,
+      );
 
   const filename = exportFilename(session.title || "export", options);
   return new NextResponse(new Uint8Array(bytes), {

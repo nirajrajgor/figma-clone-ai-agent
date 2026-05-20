@@ -45,16 +45,33 @@ export async function deleteTestProject(
   }
 }
 
+export type CreateSessionOptions = {
+  /** phone | tablet | desktop — sent when creating a blank file */
+  preset?: "phone" | "tablet" | "desktop";
+  /** Include test fixture image (default true) */
+  withImage?: boolean;
+};
+
 export async function createSession(
   request: APIRequestContext,
   ws: string,
   project: string,
   title: string,
+  options?: CreateSessionOptions,
 ) {
-  const fs = await import("fs");
+  const { preset = "phone", withImage = true } = options ?? {};
   const form = new FormData();
   form.set("title", title);
-  form.set("image", new Blob([fs.readFileSync(FIXTURE)], { type: "image/png" }), "test.png");
+  if (!withImage) {
+    form.set("preset", preset);
+  } else {
+    const fs = await import("fs");
+    form.set(
+      "image",
+      new Blob([fs.readFileSync(FIXTURE)], { type: "image/png" }),
+      "test.png",
+    );
+  }
   const res = await request.post(
     `/api/workspaces/${encodeURIComponent(ws)}/projects/${encodeURIComponent(project)}/sessions`,
     { multipart: form },

@@ -10,6 +10,8 @@ import {
   resolveImageDropTarget,
   moveImageBetweenArtboards,
   placementForNewArtboard,
+  placementOffsetFromActiveArtboard,
+  PRESET_ARTBOARD_OFFSET_X,
 } from "./session-document";
 
 describe("session-document", () => {
@@ -49,6 +51,23 @@ describe("session-document", () => {
     const first = createEmptyArtboard([], 0, 0);
     const spot = placementForNewArtboard([first]);
     expect(spot.x).toBeGreaterThan(first.artboardWidth);
+  });
+
+  it("places preset frames offset to the right of the active artboard", () => {
+    const phone = createEmptyArtboard([], 100, 50, { width: 390, height: 844 });
+    const tablet = createEmptyArtboard([phone], 600, 50, { width: 768, height: 1024 });
+    const spot = placementOffsetFromActiveArtboard(phone, [phone, tablet]);
+    expect(spot).toEqual({
+      x: phone.x + phone.artboardWidth + PRESET_ARTBOARD_OFFSET_X,
+      y: phone.y,
+    });
+  });
+
+  it("falls back to placementForNewArtboard when no active artboard", () => {
+    const first = createEmptyArtboard([], 0, 0);
+    expect(placementOffsetFromActiveArtboard(null, [first])).toEqual(
+      placementForNewArtboard([first]),
+    );
   });
 
   it("finds artboards in canvas coordinates", () => {

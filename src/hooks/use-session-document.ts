@@ -5,6 +5,8 @@ import {
   useState,
   type SetStateAction,
 } from "react";
+import type { DevicePresetId } from "@/lib/markup/device-presets";
+import { devicePresetSize } from "@/lib/markup/device-presets";
 import type { MarkupObject } from "@/lib/markup/types";
 import { layoutFromArtboard } from "@/lib/markup/artboard-layout";
 import {
@@ -15,6 +17,7 @@ import {
   getActiveArtboard,
   moveImageBetweenArtboards,
   placementForNewArtboard,
+  placementOffsetFromActiveArtboard,
   updateArtboardInDocument,
   type ClientSessionDocument,
 } from "@/lib/markup/session-document";
@@ -181,6 +184,26 @@ export function useSessionDocument(
     resetHistory([]);
   }, [resetHistory, setDocument, withFlushedMarkup]);
 
+  const addArtboardFromPreset = useCallback(
+    (presetId: DevicePresetId) => {
+      const size = devicePresetSize(presetId);
+      if (!size) return;
+      setDocument((prev) => {
+        const flushed = withFlushedMarkup(prev);
+        const active = getActiveArtboard(flushed);
+        const spot = placementOffsetFromActiveArtboard(active, flushed.artboards);
+        const artboard = createEmptyArtboard(flushed.artboards, spot.x, spot.y, size);
+        return {
+          ...flushed,
+          artboards: [...flushed.artboards, artboard],
+          activeArtboardId: artboard.id,
+        };
+      });
+      resetHistory([]);
+    },
+    [resetHistory, setDocument, withFlushedMarkup],
+  );
+
   const createArtboardAtDrag = useCallback(
     (x1: number, y1: number, x2: number, y2: number) => {
       setDocument((prev) => {
@@ -237,6 +260,7 @@ export function useSessionDocument(
     patchActiveArtboard,
     patchArtboard,
     addEmptyArtboard,
+    addArtboardFromPreset,
     createArtboardAtDrag,
     transferImageToArtboard,
     artboardAtCanvasPoint,

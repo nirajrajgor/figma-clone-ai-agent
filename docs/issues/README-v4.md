@@ -45,9 +45,9 @@ Run tests listed in the issue. Mark acceptance criteria in the issue when done.
 |---|--------|------|--------|------------|
 | [030](./030-device-presets.md) | Device preset constants | AFK | **Done** | — |
 | [031](./031-blank-design-file-api.md) | Create design file without image (API) | AFK | **Done** | — |
-| [032](./032-create-dialog-presets.md) | Create dialog: preset + optional image | AFK | Ready | 030, 031 |
+| [032](./032-create-dialog-presets.md) | Create dialog: preset + optional image | AFK | **Done** | 030, 031 |
 | [033](./033-design-file-ui-copy.md) | UI copy: design file / Designer | AFK | **Done** | — |
-| [034](./034-add-frame-from-preset.md) | Add device frame from preset in editor | AFK | Ready | 030 |
-| [035](./035-export-blank-frame.md) | Export blank frame (no image layer) | AFK | Ready | — |
+| [034](./034-add-frame-from-preset.md) | Add device frame from preset in editor | AFK | **Done** | 030 |
+| [035](./035-export-blank-frame.md) | Export blank frame (no image layer) | AFK | **Done** | — |
 | [036](./036-e2e-blank-design-file.md) | E2E: blank design file + preset create | AFK | Ready | 032 |
-| [037](./037-review-tools-toolbar.md) | Review tools group in toolbar | AFK | Ready | 033 (labels) |
+| [037](./037-review-tools-toolbar.md) | Review tools group in toolbar | AFK | **Done** | 033 (labels) |

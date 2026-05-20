@@ -65,36 +65,27 @@ async function applyRoundedClip(
   return sharp(buffer).composite([{ input: mask, blend: "dest-in" }]).png().toBuffer();
 }
 
-export async function composeExportPng(
-  baseImagePath: string,
+async function composeContentLayer(
+  baseLayer: Buffer | null,
   objects: MarkupObject[],
-  intrinsicWidth: number,
-  intrinsicHeight: number,
-  layout: ArtboardLayout,
+  contentWidth: number,
+  contentHeight: number,
   crop: ImageCrop,
-  style: FrameContentStyle = {},
+  style: FrameContentStyle,
 ): Promise<Buffer> {
-  const { width: frameW, height: frameH } = exportFrameDimensions(layout);
-  const imgW = roundPx(layout.imageDisplayWidth);
-  const imgH = roundPx(layout.imageDisplayHeight);
-  const left = Math.round(layout.imageOffsetX);
-  const top = Math.round(layout.imageOffsetY);
   const imageOpacity = style.imageOpacity ?? 100;
   const frameCornerRadius = style.frameCornerRadius ?? 0;
-
-  const baseLayer = await sharp(baseImagePath)
-    .extract({
-      left: Math.round(crop.x),
-      top: Math.round(crop.y),
-      width: Math.round(crop.width),
-      height: Math.round(crop.height),
-    })
-    .resize(imgW, imgH)
-    .png()
-    .toBuffer();
+  const imgW = roundPx(contentWidth);
+  const imgH = roundPx(contentHeight);
 
   const svg = markupToSvg(objects, crop.width, crop.height, crop.x, crop.y);
   const overlay = await sharp(Buffer.from(svg)).resize(imgW, imgH).png().toBuffer();
+
+  const composites: { input: Buffer; left: number; top: number }[] = [];
+  if (baseLayer) {
+    composites.push({ input: baseLayer, left: 0, top: 0 });
+  }
+  composites.push({ input: overlay, left: 0, top: 0 });
 
   let contentLayer = await sharp({
     create: {
@@ -104,15 +95,21 @@ export async function composeExportPng(
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     },
   })
-    .composite([
-      { input: baseLayer, left: 0, top: 0 },
-      { input: overlay, left: 0, top: 0 },
-    ])
+    .composite(composites)
     .png()
     .toBuffer();
 
   contentLayer = await applyOpacity(contentLayer, imageOpacity);
-  contentLayer = await applyRoundedClip(contentLayer, imgW, imgH, frameCornerRadius);
+  return applyRoundedClip(contentLayer, imgW, imgH, frameCornerRadius);
+}
+
+async function composeFramedPng(
+  contentLayer: Buffer,
+  layout: ArtboardLayout,
+): Promise<Buffer> {
+  const { width: frameW, height: frameH } = exportFrameDimensions(layout);
+  const left = Math.round(layout.imageOffsetX);
+  const top = Math.round(layout.imageOffsetY);
 
   return sharp({
     create: {
@@ -125,6 +122,52 @@ export async function composeExportPng(
     .composite([{ input: contentLayer, left, top }])
     .png()
     .toBuffer();
+}
+
+export async function composeBlankExportPng(
+  objects: MarkupObject[],
+  layout: ArtboardLayout,
+  style: FrameContentStyle = {},
+): Promise<Buffer> {
+  const imgW = roundPx(layout.imageDisplayWidth);
+  const imgH = roundPx(layout.imageDisplayHeight);
+  const crop: ImageCrop = { x: 0, y: 0, width: imgW, height: imgH };
+  const contentLayer = await composeContentLayer(null, objects, imgW, imgH, crop, style);
+  return composeFramedPng(contentLayer, layout);
+}
+
+export async function composeExportPng(
+  baseImagePath: string,
+  objects: MarkupObject[],
+  intrinsicWidth: number,
+  intrinsicHeight: number,
+  layout: ArtboardLayout,
+  crop: ImageCrop,
+  style: FrameContentStyle = {},
+): Promise<Buffer> {
+  const imgW = roundPx(layout.imageDisplayWidth);
+  const imgH = roundPx(layout.imageDisplayHeight);
+
+  const baseLayer = await sharp(baseImagePath)
+    .extract({
+      left: Math.round(crop.x),
+      top: Math.round(crop.y),
+      width: Math.round(crop.width),
+      height: Math.round(crop.height),
+    })
+    .resize(imgW, imgH)
+    .png()
+    .toBuffer();
+
+  const contentLayer = await composeContentLayer(
+    baseLayer,
+    objects,
+    imgW,
+    imgH,
+    crop,
+    style,
+  );
+  return composeFramedPng(contentLayer, layout);
 }
 
 function scaleLayout(layout: ArtboardLayout, scale: number): ArtboardLayout {
@@ -148,6 +191,28 @@ function scaleFrameStyle(style: FrameContentStyle, scale: number): FrameContentS
   };
 }
 
+function encodeExportBuffer(png: Buffer, exportOptions: ExportOptions): Promise<Buffer> {
+  if (exportOptions.format === "jpg") {
+    return sharp(png)
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .jpeg({ quality: exportOptions.quality })
+      .toBuffer();
+  }
+  return Promise.resolve(png);
+}
+
+export async function composeBlankExport(
+  objects: MarkupObject[],
+  layout: ArtboardLayout,
+  exportOptions: ExportOptions = DEFAULT_EXPORT_OPTIONS,
+  style: FrameContentStyle = {},
+): Promise<Buffer> {
+  const scaledLayout = scaleLayout(layout, exportOptions.scale);
+  const scaledStyle = scaleFrameStyle(style, exportOptions.scale);
+  const png = await composeBlankExportPng(objects, scaledLayout, scaledStyle);
+  return encodeExportBuffer(png, exportOptions);
+}
+
 export async function composeExport(
   baseImagePath: string,
   objects: MarkupObject[],
@@ -169,11 +234,5 @@ export async function composeExport(
     crop,
     scaledStyle,
   );
-  if (exportOptions.format === "jpg") {
-    return sharp(png)
-      .flatten({ background: { r: 255, g: 255, b: 255 } })
-      .jpeg({ quality: exportOptions.quality })
-      .toBuffer();
-  }
-  return png;
+  return encodeExportBuffer(png, exportOptions);
 }

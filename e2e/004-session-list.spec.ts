@@ -23,7 +23,7 @@ test.describe("Issue #004 — markup session list and create", () => {
     await page.getByTestId("create-session-open").click();
     await page.getByTestId("session-title-input").fill("Login 500 error");
     await page.getByTestId("session-image-input").setInputFiles(FIXTURE);
-    await page.getByTestId("create-session-submit").click();
+    await page.getByTestId("create-design-file-submit").click();
     await expect(page).toHaveURL(/\/sessions\//);
     await expect(page.getByTestId("session-editor-title")).toHaveValue("Login 500 error");
   });
