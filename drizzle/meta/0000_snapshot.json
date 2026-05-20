@@ -1,0 +1,14 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "0000_init",
+  "prevId": "",
+  "tables": {},
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  }
+}
