@@ -20,6 +20,22 @@ const STEPS: { id: Step; label: string }[] = [
 
 const BLUR_DEBOUNCE_MS = 300;
 
+async function readJsonResponse<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  if (!text.trim()) {
+    throw new Error(
+      res.ok
+        ? "Empty response from server"
+        : `Request failed (${res.status}). Restart the dev server if you just cleared data.`,
+    );
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Invalid response from server (${res.status})`);
+  }
+}
+
 function useDebouncedBlurCheck() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -59,14 +75,14 @@ export function EntryFlow() {
 
   async function checkWorkspace(name: string, signal?: AbortSignal) {
     const res = await fetch(apiWorkspacePath(name), { signal });
-    const data = await res.json();
-    return data.exists as boolean;
+    const data = await readJsonResponse<{ exists: boolean }>(res);
+    return data.exists;
   }
 
   async function checkProject(ws: string, name: string, signal?: AbortSignal) {
     const res = await fetch(apiProjectPath(ws, name), { signal });
-    const data = await res.json();
-    return data.exists as boolean;
+    const data = await readJsonResponse<{ exists: boolean }>(res);
+    return data.exists;
   }
 
   async function createWorkspace(name: string) {
@@ -96,7 +112,14 @@ export function EntryFlow() {
       return;
     }
     setLoading(true);
-    const exists = await checkWorkspace(name);
+    let exists: boolean;
+    try {
+      exists = await checkWorkspace(name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not reach server");
+      setLoading(false);
+      return;
+    }
     if (!exists) {
       const ok = await createWorkspace(name);
       if (!ok) {
@@ -119,7 +142,14 @@ export function EntryFlow() {
       return;
     }
     setLoading(true);
-    const exists = await checkProject(ws, name);
+    let exists: boolean;
+    try {
+      exists = await checkProject(ws, name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not reach server");
+      setLoading(false);
+      return;
+    }
     setProjectExists(exists);
     if (!exists) {
       const ok = await createProject(ws, name);
