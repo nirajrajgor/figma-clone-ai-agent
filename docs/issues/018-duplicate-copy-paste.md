@@ -1,7 +1,7 @@
 # 018 — Duplicate and copy/paste markup
 
 **Type:** AFK  
-**Status:** Open  
+**Status:** Done  
 **Triage:** ready-for-agent  
 **Blocked by:** v1 complete
 
@@ -11,13 +11,14 @@
 
 ## What to build
 
-Duplicate selection (`Cmd/Ctrl+D`) with offset. Copy/paste selection within session (`Cmd/Ctrl+C` / `V`); new object ids and z-index. Undo integrates.
+Duplicate selection (`Cmd/Ctrl+D`) with offset. Copy/paste selection within session (`Cmd/Ctrl+C` / `V`); new object ids and z-index. Undo integrates. Context menu exposure: [038](./038-markup-context-menu.md).
 
 ## Acceptance criteria
 
-- [ ] Duplicate creates copies with new ids (US 12)
-- [ ] Paste within same session (US 13)
-- [ ] Undo reverses duplicate/paste
+- [x] Duplicate creates copies with new ids (US 12)
+- [x] Paste within same session (US 13)
+- [x] Undo reverses duplicate/paste
+- [x] Context menu duplicate/copy/paste (see [038](./038-markup-context-menu.md))
 
 ## User stories
 

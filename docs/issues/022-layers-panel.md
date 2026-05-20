@@ -20,7 +20,8 @@ No list of markup objects. Z-order is only reachable via bring-forward/send-back
 - Click layer → select object on canvas; shift-click multi-select optional
 - Click frame or image row → select artboard frame or base image on canvas
 - Show type icon + short label (text content preview or type name)
-- Reorder via drag or context actions (stretch: drag reorder)
+- Right-click markup row → markup context menu (copy, paste, duplicate, z-order, edit text, delete); see [038](./038-markup-context-menu.md)
+- Reorder via drag (stretch: drag reorder)
 
 ## Acceptance criteria
 
@@ -31,6 +32,7 @@ No list of markup objects. Z-order is only reachable via bring-forward/send-back
 - [x] List order matches z-order (markup front-to-back, image behind markup)
 - [x] Right panel shows properties only (no duplicate layers list)
 - [x] E2E: `e2e/v3-layers-panel.spec.ts` — tree in left sidebar, selection, z-order, collapse, multi-artboard
+- [x] Layers row opens markup context menu ([038](./038-markup-context-menu.md)); E2E in `e2e/markup-context-menu.spec.ts`
 
 ## E2E spec
 

@@ -76,9 +76,28 @@ Extend **markup document**, **hit testing**, **render-svg**, **export compositor
 | Delete selection | `Delete` / `Backspace` (existing) |
 | Duplicate | `Cmd/Ctrl+D` |
 | Copy / Paste | `Cmd/Ctrl+C`, `Cmd/Ctrl+V` |
+| Group / Ungroup | `Cmd/Ctrl+G`, `Cmd/Ctrl+Shift+G` |
 | Zoom in / out / fit / 100% | `+` / `-` / `0` / `1` (when canvas focused) |
 
 Show shortcut hints in tool tooltips or a small cheatsheet link in the editor.
+
+### Markup context menu
+
+Right-click the **canvas** or a **layers** row (when the select tool is active and text is not being edited):
+
+| Action | Shortcut (menu hint) |
+|--------|----------------------|
+| Copy | `Cmd/Ctrl+C` |
+| Paste | `Cmd/Ctrl+V` |
+| Duplicate | `Cmd/Ctrl+D` |
+| Bring forward | — |
+| Send backward | — |
+| Group | `Cmd/Ctrl+G` |
+| Ungroup | `Cmd/Ctrl+Shift+G` |
+| Edit text | — (single text layer only) |
+| Delete | — |
+
+Right-click on a shape selects it if not already selected (Shift+right-click toggles multi-select). Layer order actions match the toolbar bring-forward / send-backward buttons.
 
 ### Upload limit
 
@@ -92,13 +111,13 @@ Show shortcut hints in tool tooltips or a small cheatsheet link in the editor.
 | Markup document / types | New discriminated variants |
 | Tool controllers | Ellipse, line, redact gestures |
 | Hit test & render & export | Per-type geometry |
-| Annotation editor | Toolbar, shortcuts, save status, zoom UI, clipboard |
+| Annotation editor | Toolbar, shortcuts, context menu, save status, zoom UI, clipboard |
 | API | Optional: none beyond existing session save |
 
 ### Testing
 
 - Unit: document round-trip, hit test, export fixtures for new types
-- E2E: one spec per new tool; shortcuts smoke test; redact visible in export download
+- E2E: one spec per new tool; shortcuts smoke test; `e2e/markup-context-menu.spec.ts`; redact visible in export download
 
 ## Out of Scope (v2)
 

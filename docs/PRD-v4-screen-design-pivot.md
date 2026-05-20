@@ -18,7 +18,7 @@ Phased pivot (**design + light edit**): device-sized frames on one canvas, vecto
 |-------|----------------|
 | **1 — Design MVP** | Device presets; create **design file** without upload; empty frames; UI copy pivot; rectangle/ellipse/line/text as layout primitives |
 | **2 — Light image edit** | Brightness/saturation on **image layer**; export all frames; curated font list (3–5 families) |
-| **3 — Structure** | **Groups** in layers panel; duplicate frame; icons/SVG paste |
+| **3 — Structure** | **Groups** in layers panel ([039](./issues/039-markup-groups.md)); duplicate frame; icons/SVG paste |
 | **Deferred** | Components/instances, auto-layout, constraints, prototyping, design tokens, real-time multiplayer, Photoshop tools |
 
 ## Out of scope (all phases)

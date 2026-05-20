@@ -194,6 +194,16 @@ _Avoid_: Share link, viewport screenshot, editable handoff
 A key chord in the session editor that runs an action without using the toolbar (e.g. switch **markup tool**, undo, delete selection, duplicate). Shortcuts are disabled while focus is in a text field.
 _Avoid_: Hotkey (implementation), accelerator
 
+**Markup context menu**:
+Right-click on the **canvas viewport** or a **layers panel** row opens a Figma-style menu for the current (or clicked) **scene object(s)**: copy, paste, duplicate, **group**, **ungroup**, bring forward, send backward, edit text (single text layer), and delete. Same operations as keyboard shortcuts where applicable; paste uses an in-session clipboard only.
+_Avoid_: System clipboard, frame-level menu (not yet)
+
+**Group**:
+A organizational layer that holds 2+ **scene objects** on a frame. Members share a `groupId`; selecting or moving one member selects/moves the whole group. Created with Group (`Cmd/Ctrl+G`) or context menu; Ungroup with `Cmd/Ctrl+Shift+G`. Shown as a collapsible folder in the **layers panel**.
+_Avoid_: Component, instance, auto-layout group
+
+**Group** supports **resize handles** on the group bounding box (all members scale together) and **copy/paste** that preserves nesting via the in-session clipboard.
+
 **Save status**:
 Feedback showing whether changes to the **design file** are saved, in flight, or failed.
 _Avoid_: Sync indicator, online status
