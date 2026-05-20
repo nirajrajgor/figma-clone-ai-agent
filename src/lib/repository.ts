@@ -5,6 +5,7 @@ import { getDb, schema } from "./db";
 import { deleteSessionUploadDir } from "./images";
 import { mergeReplacedBaseImage } from "./markup/replace-base-image";
 import {
+  createBlankInitialSessionDocument,
   createInitialSessionDocument,
   imagePathsInDocument,
   requireSessionDocument,
@@ -87,27 +88,31 @@ export function createSession(
   workspaceName: string,
   projectName: string,
   title: string,
-  image: {
-    id: string;
+  image?: {
     path: string;
     mime: string;
     width: number;
     height: number;
     thumbnailPath: string;
   },
+  options?: {
+    sessionId?: string;
+    frameSize?: { width: number; height: number };
+  },
 ) {
   const project = findProject(workspaceName, projectName);
   if (!project) throw new Error("Project not found");
-  const sessionId = image.id;
+  const sessionId = options?.sessionId ?? randomUUID();
   const now = new Date();
-  const imageAssetId = randomUUID();
-  const document = createInitialSessionDocument(title, {
-    id: imageAssetId,
-    path: image.path,
-    mime: image.mime,
-    width: image.width,
-    height: image.height,
-  });
+  const document = image
+    ? createInitialSessionDocument(title, {
+        id: randomUUID(),
+        path: image.path,
+        mime: image.mime,
+        width: image.width,
+        height: image.height,
+      })
+    : createBlankInitialSessionDocument(title, options?.frameSize);
   getDb()
     .insert(markupSessions)
     .values({
@@ -115,7 +120,7 @@ export function createSession(
       projectId: project.id,
       title,
       document,
-      thumbnailPath: image.thumbnailPath,
+      thumbnailPath: image?.thumbnailPath ?? null,
       createdAt: now,
       updatedAt: now,
     })

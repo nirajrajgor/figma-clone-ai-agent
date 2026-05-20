@@ -175,7 +175,7 @@ export function EntryFlow() {
           <CardDescription className="mt-1.5">
             {step === "workspace"
               ? "Workspaces group your team's projects. New names are created on continue."
-              : "Projects hold markup sessions on shared images."}
+              : "Projects hold design files—screen layouts and shared images."}
           </CardDescription>
         </div>
       </CardHeader>

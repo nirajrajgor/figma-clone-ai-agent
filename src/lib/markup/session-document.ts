@@ -83,6 +83,19 @@ export type ClientSessionDocument = {
 
 const DEFAULT_EMPTY_FRAME = { width: 640, height: 480 };
 
+export function createBlankInitialSessionDocument(
+  title: string,
+  frameSize = DEFAULT_EMPTY_FRAME,
+): StoredSessionDocument {
+  const artboard = createEmptyArtboard([], 0, 0, frameSize);
+  return {
+    version: SESSION_DOCUMENT_VERSION,
+    activeArtboardId: artboard.id,
+    images: {},
+    artboards: [{ ...artboard, title }],
+  };
+}
+
 export function createInitialSessionDocument(
   title: string,
   imageAsset: StoredImageAsset,

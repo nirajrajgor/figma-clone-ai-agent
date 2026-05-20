@@ -43,14 +43,14 @@ export function ProjectView({ workspace, project, initialSessions }: Props) {
             trailing={
               <>
                 <ActionTooltip
-                  label={sidebarOpen ? "Hide sessions panel" : "Show sessions panel"}
+                  label={sidebarOpen ? "Hide design files panel" : "Show design files panel"}
                 >
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
                     data-testid="toggle-sidebar"
-                    aria-label={sidebarOpen ? "Hide sessions panel" : "Show sessions panel"}
+                    aria-label={sidebarOpen ? "Hide design files panel" : "Show design files panel"}
                     aria-pressed={sidebarOpen}
                     onClick={() => setSidebarOpen((open) => !open)}
                   >
@@ -77,9 +77,10 @@ export function ProjectView({ workspace, project, initialSessions }: Props) {
               <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted">
                 <Images className="size-7 text-muted-foreground" aria-hidden />
               </div>
-              <h1 className="text-lg font-semibold">No sessions yet</h1>
+              <h1 className="text-lg font-semibold">No design files yet</h1>
               <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                Upload a screenshot and start annotating with your team.
+                Create a design file with device frames, shapes, and text—or add an image layer when
+                you need one.
               </p>
               <Button
                 type="button"
@@ -87,15 +88,14 @@ export function ProjectView({ workspace, project, initialSessions }: Props) {
                 data-testid="create-session-empty"
                 onClick={() => setCreateOpen(true)}
               >
-                New markup session
+                New design file
               </Button>
             </>
           ) : (
             <>
-              <h1 className="text-lg font-semibold">Select a session</h1>
+              <h1 className="text-lg font-semibold">Select a design file</h1>
               <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                Choose a session from the sidebar to open the annotation canvas, or create a new
-                one.
+                Choose a design file from the sidebar to open the canvas, or create a new one.
               </p>
               <Button
                 type="button"
@@ -104,7 +104,7 @@ export function ProjectView({ workspace, project, initialSessions }: Props) {
                 data-testid="create-session-empty"
                 onClick={() => setCreateOpen(true)}
               >
-                New markup session
+                New design file
               </Button>
             </>
           )}

@@ -43,10 +43,10 @@ Run tests listed in the issue. Mark acceptance criteria in the issue when done.
 
 | # | Title | Type | Status | Blocked by |
 |---|--------|------|--------|------------|
-| [030](./030-device-presets.md) | Device preset constants | AFK | Ready | — |
-| [031](./031-blank-design-file-api.md) | Create design file without image (API) | AFK | Ready | — |
+| [030](./030-device-presets.md) | Device preset constants | AFK | **Done** | — |
+| [031](./031-blank-design-file-api.md) | Create design file without image (API) | AFK | **Done** | — |
 | [032](./032-create-dialog-presets.md) | Create dialog: preset + optional image | AFK | Ready | 030, 031 |
-| [033](./033-design-file-ui-copy.md) | UI copy: design file / Designer | AFK | Ready | — |
+| [033](./033-design-file-ui-copy.md) | UI copy: design file / Designer | AFK | **Done** | — |
 | [034](./034-add-frame-from-preset.md) | Add device frame from preset in editor | AFK | Ready | 030 |
 | [035](./035-export-blank-frame.md) | Export blank frame (no image layer) | AFK | Ready | — |
 | [036](./036-e2e-blank-design-file.md) | E2E: blank design file + preset create | AFK | Ready | 032 |

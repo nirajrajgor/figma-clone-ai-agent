@@ -40,7 +40,7 @@ export function SessionsSidebar({
     >
       <div className="flex items-center gap-2 px-3 py-2">
         <p className="min-w-0 flex-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Sessions
+          Design files
         </p>
         <span className="text-xs text-muted-foreground">{sessions.length}</span>
         <Button
@@ -48,8 +48,8 @@ export function SessionsSidebar({
           variant="outline"
           size="icon-sm"
           data-testid="create-session-open"
-          aria-label="New session"
-          title="New session"
+          aria-label="New design file"
+          title="New design file"
           onClick={onNewSession}
         >
           <Plus className="size-3.5" />
@@ -102,7 +102,7 @@ export function SessionsSidebar({
           {sessions.length === 0 && (
             <li className="flex flex-col items-center gap-2 px-4 py-8 text-center">
               <FileImage className="size-8 text-muted-foreground/50" aria-hidden />
-              <p className="text-xs text-muted-foreground">No sessions yet</p>
+              <p className="text-xs text-muted-foreground">No design files yet</p>
               <Button
                 type="button"
                 variant="secondary"
@@ -110,7 +110,7 @@ export function SessionsSidebar({
                 className="mt-1"
                 onClick={onNewSession}
               >
-                New session
+                New design file
               </Button>
             </li>
           )}

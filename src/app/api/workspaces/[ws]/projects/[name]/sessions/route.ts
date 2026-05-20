@@ -2,11 +2,19 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { apiSessionThumbnailPath, decodeSegment } from "@/lib/paths";
 import { allowedImageMime, saveBaseImage } from "@/lib/images";
+import { resolveFrameSizeFromForm } from "@/lib/markup/frame-preset-sizes";
 import { isUploadTooLarge, uploadTooLargeMessage } from "@/lib/upload-limits";
 import { createSession, findProject, listSessions } from "@/lib/repository";
 
 type Params = { params: Promise<{ ws: string; name: string }> };
 
+/**
+ * POST multipart fields:
+ * - title (required)
+ * - image (optional) — PNG/JPEG/WebP file
+ * - preset (optional) — phone | tablet | desktop
+ * - frameWidth, frameHeight (optional) — custom blank frame size
+ */
 export async function GET(_req: Request, { params }: Params) {
   const { ws, name } = await params;
   const workspaceName = decodeSegment(ws);
@@ -25,6 +33,10 @@ export async function GET(_req: Request, { params }: Params) {
   return NextResponse.json({ sessions });
 }
 
+function isImageFile(file: FormDataEntryValue | null): file is File {
+  return file instanceof File && file.size > 0;
+}
+
 export async function POST(req: Request, { params }: Params) {
   const { ws, name } = await params;
   const workspaceName = decodeSegment(ws);
@@ -38,9 +50,19 @@ export async function POST(req: Request, { params }: Params) {
   if (!title) {
     return NextResponse.json({ error: "Title required" }, { status: 400 });
   }
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Image required" }, { status: 400 });
+
+  const frameSize = resolveFrameSizeFromForm(form);
+
+  if (!isImageFile(file)) {
+    const session = createSession(workspaceName, projectName, title, undefined, {
+      frameSize,
+    });
+    return NextResponse.json(
+      { sessionId: session.id, title: session.title },
+      { status: 201 },
+    );
   }
+
   if (!allowedImageMime(file.type)) {
     return NextResponse.json({ error: "Unsupported image type" }, { status: 400 });
   }
@@ -49,13 +71,18 @@ export async function POST(req: Request, { params }: Params) {
   }
   const sessionId = randomUUID();
   const image = await saveBaseImage(sessionId, file);
-  const session = createSession(workspaceName, projectName, title, {
-    id: sessionId,
-    path: image.path,
-    mime: image.mime,
-    width: image.width,
-    height: image.height,
-    thumbnailPath: image.thumbnailPath,
-  });
+  const session = createSession(
+    workspaceName,
+    projectName,
+    title,
+    {
+      path: image.path,
+      mime: image.mime,
+      width: image.width,
+      height: image.height,
+      thumbnailPath: image.thumbnailPath,
+    },
+    { sessionId, frameSize },
+  );
   return NextResponse.json({ sessionId: session.id, title: session.title }, { status: 201 });
 }

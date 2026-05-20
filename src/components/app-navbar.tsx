@@ -52,7 +52,7 @@ export function AppNavbar({ crumbs, exportHref, trailing, className }: Props) {
                     if (e.key === "Enter") e.currentTarget.blur();
                   }}
                   className="h-7 max-w-[14rem] min-w-[8rem] border-transparent bg-transparent px-1.5 font-medium text-foreground shadow-none focus-visible:border-input"
-                  aria-label="Session title"
+                  aria-label="Design file title"
                 />
               ) : crumb.href ? (
                 <Link

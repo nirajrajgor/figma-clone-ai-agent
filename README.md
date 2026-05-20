@@ -1,6 +1,6 @@
 # Image Annotation (team instance)
 
-Minimal Figma-like markup on images for teams—rectangles, arrows, text, and freehand over a **base image**, with **export** to PNG.
+Screen layout for teams—device frames, shapes, text, and optional **image layers**, with **export** to PNG.
 
 ## Docs
 
@@ -29,4 +29,4 @@ E2E conventions: [docs/issues/E2E.md](./docs/issues/E2E.md)
 
 ## Status
 
-v1 vertical slices **#001–#013** implemented. Run the app with `npm run dev`, then `npm run e2e` (headful) to watch all 17 E2E tests.
+v1 vertical slices **#001–#013** implemented; v4 phase 1 (**#030–#037**) adds screen-design UX and blank design files. Run `npm run dev`, then `npm run e2e` (headful) to watch E2E tests.

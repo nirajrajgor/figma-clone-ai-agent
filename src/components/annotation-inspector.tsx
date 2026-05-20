@@ -155,12 +155,12 @@ export function AnnotationInspector({
           {showSessionPanel && sessionActions && (
             <div className="space-y-3" data-testid="session-maintenance">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Session
+                Design file
               </p>
               <div className="space-y-2">
-                <Label>Replace base image</Label>
+                <Label>Replace image</Label>
                 <p className="text-xs text-muted-foreground">
-                  Same-size images keep markup; different sizes ask before clearing.
+                  Same-size images keep scene objects; different sizes ask before clearing.
                 </p>
                 <ImageUpload
                   value={null}
@@ -179,7 +179,7 @@ export function AnnotationInspector({
                 data-testid="delete-session"
                 onClick={sessionActions.onDeleteSession}
               >
-                Delete session
+                Delete design file
               </Button>
             </div>
           )}

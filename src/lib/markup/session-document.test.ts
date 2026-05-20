@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createBlankInitialSessionDocument,
   createEmptyArtboard,
   createInitialSessionDocument,
   documentBounds,
@@ -12,6 +13,24 @@ import {
 } from "./session-document";
 
 describe("session-document", () => {
+  it("creates a blank initial session document with one empty artboard", () => {
+    const doc = createBlankInitialSessionDocument("Login v2");
+    expect(doc.artboards).toHaveLength(1);
+    expect(doc.artboards[0].title).toBe("Login v2");
+    expect(doc.artboards[0].imageId).toBeNull();
+    expect(doc.artboards[0].markupStack).toEqual([]);
+    expect(Object.keys(doc.images)).toHaveLength(0);
+    expect(doc.activeArtboardId).toBe(doc.artboards[0].id);
+    expect(doc.artboards[0].artboardWidth).toBe(640);
+    expect(doc.artboards[0].artboardHeight).toBe(480);
+  });
+
+  it("creates a blank document with a custom frame size", () => {
+    const doc = createBlankInitialSessionDocument("Phone", { width: 390, height: 844 });
+    expect(doc.artboards[0].artboardWidth).toBe(390);
+    expect(doc.artboards[0].artboardHeight).toBe(844);
+  });
+
   it("creates an initial session document from an image asset", () => {
     const doc = createInitialSessionDocument("Screen", {
       id: "img-1",
