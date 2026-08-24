@@ -1,16 +1,13 @@
-# Image Annotation (team instance)
+# Figma Clone Built With an AI Agent
+
+[![Cursor usage chart showing 119.3 million Composer 2.5 Fast tokens recorded on May 20, 2026](./docs/assets/cursor-token-usage-16x9-seamless.png)](https://nirajrajgor.com/blog/figma-clone-ai-agent)
 
 > [!IMPORTANT]
-> This repository is companion source for an upcoming blog post. It is a
-> historical reference snapshot: it is not maintained or supported, and it is
-> not intended for production or public deployment. The application has no
-> authentication and may contain known security and dependency issues.
-
-## Blog post
-
-Publication link: `BLOG_URL_TBD`
-
-This placeholder will be replaced before the repository is made public.
+> This repository is companion source for
+> [I Spent 120M Tokens Building a Figma Clone With an AI Agent](https://nirajrajgor.com/blog/figma-clone-ai-agent).
+> It is a historical reference snapshot: it is not maintained or supported,
+> and it is not intended for production or public deployment. The application
+> has no authentication and may contain known security and dependency issues.
 
 Screen layout for teams—device frames, shapes, text, and optional **image layers**, with **export** to PNG.
 

@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Image Annotation",
-  description: "Team image markup and annotation",
+  title: "Figma Clone Built With an AI Agent",
+  description: "A Figma-style screen design editor built with an AI agent",
 };
 
 export default function RootLayout({

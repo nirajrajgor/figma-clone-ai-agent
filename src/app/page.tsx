@@ -8,9 +8,9 @@ export default function Home() {
         <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
           <ImageIcon className="size-6" aria-hidden />
         </div>
-        <p className="text-lg font-semibold tracking-tight">Image Annotation</p>
+        <p className="text-lg font-semibold tracking-tight">Figma Clone</p>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Mark up screenshots with your team — no login required.
+          Design and annotate screens — no login required.
         </p>
       </div>
       <EntryFlow />
